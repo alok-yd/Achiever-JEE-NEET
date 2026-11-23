@@ -10,6 +10,9 @@ import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_Q
 import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
+import { firebaseConfigState } from "./services/firebase";
+import { createCloudAccount, signInToCloudAccount, signOutCloudAccount, subscribeToCloudUser } from "./services/firebase-auth";
+import { loadWorkspaceFromCloud, saveWorkspaceToCloud } from "./services/cloud-workspace";
 import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
 
 type PageKey = typeof PAGE_ITEMS[number][1];
@@ -549,6 +552,42 @@ function Strategy({state,stats}:{state:AppState;stats:ReturnType<typeof subjectS
  const weak=stats.slice().sort((a,b)=>a.accuracy-b.accuracy)[0];
  return <div className="page-stack"><div className="strategy-hero"><small>EXAM-SPECIFIC PLAYBOOK</small><h2>{jee?"JEE preparation strategy":"NEET preparation strategy"}</h2><p>Use a balanced cycle: learn → retrieve → practise → analyse → revise.</p></div><div className="two-col"><Card><small>SUBJECT PLAYBOOK</small><h3>High-value habits</h3>{tips.map((t,i)=><div className="strategy-row" key={t[0]}><i>{i+1}</i><span><b>{t[0]}</b><p>{t[1]}</p></span></div>)}</Card><Card><small>PERSONAL FOCUS</small><h3>One area to review</h3><div className="insight"><Target size={19}/><div><b>{state.attempts.length?weak.name:"Start collecting practice data"}</b><p>{weak.attempts?"Recorded accuracy: "+weak.accuracy+"%. Revisit repeated errors and retry a short timed set.":"Log attempts across subjects before drawing conclusions about strengths or weaknesses."}</p></div></div><ul className="check-list"><li>Update priorities weekly using fresh evidence.</li><li>Protect sleep and avoid unsustainable targets.</li><li>Use official syllabus and examination documents as the source of truth.</li></ul></Card></div></div>;
 }
+function CloudAccountPanel({state,onRestore,notify}:{state:AppState;onRestore:(next:AppState)=>void;notify:(message:string)=>void}){
+ const [user,setUser]=useState<any>(null);
+ const [name,setName]=useState(state.profile.name==="Student"?"":state.profile.name);
+ const [email,setEmail]=useState("");const [password,setPassword]=useState("");
+ const [mode,setMode]=useState<"signin"|"signup">("signin");
+ const [busy,setBusy]=useState(false);const [error,setError]=useState("");
+ useEffect(()=>subscribeToCloudUser(setUser),[]);
+ const run=async(action:()=>Promise<void>,success:string)=>{
+  setBusy(true);setError("");
+  try{await action();notify(success);}
+  catch(e){const message=e instanceof Error?e.message:"Cloud operation failed";setError(message);}
+  finally{setBusy(false);}
+ };
+ const signIn=()=>run(async()=>{
+  if(mode==="signup")await createCloudAccount(name,email,password);
+  else await signInToCloudAccount(email,password);
+  setPassword("");
+ },"Firebase account connected.");
+ const push=()=>run(async()=>{
+  if(!user)throw new Error("Sign in first.");
+  if(!confirm("Replace the cloud workspace for "+user.email+" with the current local browser data? This is an explicit full-workspace upload."))return;
+  await saveWorkspaceToCloud(user.uid,state);
+ },"Local workspace uploaded to your private cloud account.");
+ const pull=()=>run(async()=>{
+  if(!user)throw new Error("Sign in first.");
+  if(!confirm("Replace this browser's local workspace with the cloud backup for "+user.email+"? Export a local JSON backup first if you may need it."))return;
+  const remote=await loadWorkspaceFromCloud(user.uid);
+  if(!remote)throw new Error("No cloud workspace has been saved for this account yet. Use Upload local workspace first.");
+  onRestore(remote);
+ },"Cloud workspace restored to this browser.");
+ return <Card className="cloud-account"><div className="card-head"><div><small>OPTIONAL ACCOUNT & CLOUD BACKUP</small><h3>Private student workspace</h3></div><Pill tone={firebaseConfigState.ready?"green":"amber"}>{firebaseConfigState.ready?"Firebase configured":"Firebase not configured"}</Pill></div>
+  {!firebaseConfigState.ready?<><p className="disclaimer">Cloud account actions are currently disabled. Create a separate Firebase project for ACHIEVER JEE/NEET, enable Email/Password Authentication, create Firestore and Storage, then add its web-app values to the deployment environment.</p><div className="metric"><span>Firebase project</span><b>Not supplied</b></div><div className="metric"><span>Local workspace</span><b>Available</b></div></>:user?<><div className="cloud-user"><span className="avatar">{(user.displayName||user.email||"S").slice(0,1).toUpperCase()}</span><span><b>{user.displayName||"Student account"}</b><small>{user.email} • UID-scoped records</small></span><Button variant="ghost" disabled={busy} onClick={()=>void run(signOutCloudAccount,"Signed out of cloud account.")}>Sign out</Button></div><p className="disclaimer">Cloud actions are manual and explicit. Upload replaces that account's saved app collections with the browser state; Restore replaces the browser state with that account's cloud snapshot. No cross-account data is shared.</p><div className="cloud-actions"><Button disabled={busy} onClick={push}><Upload size={15}/> Upload local workspace</Button><Button variant="secondary" disabled={busy} onClick={pull}><Download size={15}/> Restore cloud workspace</Button></div></>:<><div className="segmented"><button type="button" className={mode==="signin"?"selected":""} onClick={()=>setMode("signin")}>Sign in</button><button type="button" className={mode==="signup"?"selected":""} onClick={()=>setMode("signup")}>Create account</button></div><form className="form-stack" onSubmit={e=>{e.preventDefault();void signIn();}}>{mode==="signup"&&<label>Student name<input value={name} onChange={e=>setName(e.target.value)} required/></label>}<label>Email address<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==="signup"?"new-password":"current-password"} minLength={6} required/></label><Button type="submit" disabled={busy||!email.trim()||password.length<6}>{mode==="signup"?"Create secure account":"Sign in to cloud account"}</Button></form><small className="disclaimer">Email/password auth is used only when this dedicated project's configuration is present. Your existing local workspace remains separate.</small></>}
+  {busy&&<p className="disclaimer">Working with your account…</p>}{error&&<div className="file-error">{error}</div>}
+ </Card>;
+}
+
 function SettingsPage({state,update,notify}:{state:AppState;update:(fn:(s:AppState)=>AppState)=>void;notify:(s:string)=>void}){
  const [profile,setProfile]=useState(state.profile);const importRef=useRef<HTMLInputElement>(null);
  useEffect(()=>setProfile(state.profile),[state.profile]);
@@ -579,7 +618,8 @@ function SettingsPage({state,update,notify}:{state:AppState;update:(fn:(s:AppSta
  </form></Card><div className="page-stack">
   <Card><small>DATA PORTABILITY</small><h3>Backup and restore</h3><p className="muted">Export profile, syllabus marks, lectures, manual and verified focus records, attempts, tests, revision items, tasks, notes, formulas, flashcards and imported questions.</p><Button variant="secondary" onClick={exportData}><Download size={15}/> Export complete workspace</Button><input ref={importRef} type="file" hidden accept=".json,application/json" onChange={e=>{const f=e.target.files?.[0];if(f)void restore(f);e.currentTarget.value="";}}/><Button variant="ghost" onClick={()=>importRef.current?.click()}><FileText size={15}/> Restore from JSON backup</Button></Card>
   <Card><small>ACTIVE EXAM PATTERN</small><h3>{EXAM_TRACKS[profile.examTrack].name}</h3><div className="metric"><span>Pattern status</span><b>{EXAM_TRACKS[profile.examTrack].status}</b></div><div className="metric"><span>Exam date information</span><b>{EXAM_TRACKS[profile.examTrack].dateLabel}</b></div><a className="text-link" href={EXAM_TRACKS[profile.examTrack].officialSource} target="_blank" rel="noreferrer">Open official source <ArrowRight size={14}/></a></Card>
-  <Card><small>APPLICATION STATUS</small><h3>Current workspace mode</h3><div className="metric"><span>Saved storage</span><b>This browser / device</b></div><div className="metric"><span>Cloud authentication</span><b>Not connected</b></div><div className="metric"><span>Cross-device sync</span><b>Not connected</b></div><div className="metric"><span>Webcam verification</span><b>Not enabled</b></div><div className="metric"><span>AI model provider</span><b>Optional server configuration</b></div><p className="disclaimer">This version is not yet a multi-user production service. Connect a dedicated Firebase project, owner-only rules, authenticated server requests and file storage before onboarding external students.</p></Card>
+  <CloudAccountPanel state={state} onRestore={next=>update(()=>next)} notify={notify}/>
+  <Card><small>APPLICATION CAPABILITIES</small><h3>Current workspace mode</h3><div className="metric"><span>Local persistence</span><b>Active in this browser</b></div><div className="metric"><span>Webcam verification</span><b>Not enabled — manual timer only</b></div><div className="metric"><span>AI model provider</span><b>Optional server configuration</b></div><p className="disclaimer">Enable account-backed cloud sync only after a dedicated JEE/NEET Firebase project is configured. Never point this app at the existing GATE student database.</p></Card>
   <Card><small>RESET</small><h3>Clear local workspace</h3><Button variant="danger" onClick={()=>{if(confirm("This clears all ACHIEVER data stored in this browser. Export a backup first. Continue?")){localStorage.removeItem("achiever-jee-neet-v1");localStorage.removeItem(FOCUS_KEY);localStorage.removeItem("achiever-onboarded");location.reload();}}}><Trash2 size={15}/> Reset local data</Button></Card>
  </div></div>;
 }
