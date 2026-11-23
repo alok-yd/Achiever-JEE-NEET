@@ -130,6 +130,14 @@ export default function App() {
   }catch{setMessages(m=>m.concat({role:"assistant",text:localCoach(prompt)+(files.length?"\n\nThe attachment could not be sent. Check its size and try again.":"")}));}
   finally{setMentorBusy(false);}
  };
+ const askJarvis=async(message:string)=>{
+  try{
+   const response=await fetch("/api/mentor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message,context:coachContext()})});
+   const data=await response.json();
+   if(response.ok&&data.reply)return String(data.reply);
+  }catch{/* Use the local mentor fallback below when the server is unavailable. */}
+  return localCoach(message);
+ };
  const pageBody=()=>{
   switch(page){
    case "dashboard":return <Dashboard state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes} completedLectures={completedLectures} due={state.revisions.filter(x=>!x.done&&x.dueDate<=today()).length} go={navigate}/>;
@@ -170,7 +178,7 @@ export default function App() {
    </div></div>
   </main>
   <button className="jarvis-fab" aria-label="Open JARVIS voice assistant" onClick={()=>setJarvis(true)}><Mic size={22}/></button>
-  {jarvis&&<Jarvis state={state} onClose={()=>setJarvis(false)} onNavigate={navigate}/>}
+  {jarvis&&<Jarvis state={state} onClose={()=>setJarvis(false)} onNavigate={navigate} onAsk={askJarvis}/>}
   {onboarding&&<Onboarding state={state} onDone={completeOnboarding}/>}
   {toast&&<div className="toast"><CheckCircle2 size={16}/>{toast}</div>}
  </div>;
@@ -342,10 +350,20 @@ function SettingsPage({state,update,notify}:{state:AppState;update:(fn:(s:AppSta
  const exportData=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="achiever-jee-neet-backup-"+today()+".json";a.click();URL.revokeObjectURL(url);};
  return <div className="two-col"><Card><small>STUDENT PROFILE</small><h3>Your preparation details</h3><form className="form-stack" onSubmit={e=>{e.preventDefault();update(s=>({...s,profile}));notify("Profile updated.");}}><label>Student name<input value={profile.name} onChange={e=>setProfile(p=>({...p,name:e.target.value}))}/></label><label>Examination<select value={profile.exam} onChange={e=>setProfile(p=>({...p,exam:e.target.value as ExamKey,examDate:EXAM_DATES[e.target.value as ExamKey]}))}><option value="JEE">JEE Main + Advanced</option><option value="NEET">NEET UG</option></select></label><div className="form-grid"><label>Class / status<select value={profile.classLevel} onChange={e=>setProfile(p=>({...p,classLevel:e.target.value}))}><option>Class 11</option><option>Class 12</option><option>Dropper</option><option>Other</option></select></label><label>Target year<input value={profile.targetYear} onChange={e=>setProfile(p=>({...p,targetYear:e.target.value}))}/></label></div><div className="form-grid"><label>Daily target (hours)<input type="number" min="1" max="18" value={profile.dailyHours} onChange={e=>setProfile(p=>({...p,dailyHours:Number(e.target.value)}))}/></label><label>Target exam date<input type="date" value={profile.examDate} onChange={e=>setProfile(p=>({...p,examDate:e.target.value}))}/></label></div><div className="form-grid"><label>Preparation target<input value={profile.target} onChange={e=>setProfile(p=>({...p,target:e.target.value}))}/></label><label>Target institution<input value={profile.targetCollege} onChange={e=>setProfile(p=>({...p,targetCollege:e.target.value}))}/></label></div><label>Preferred branch / course<input value={profile.targetBranch} onChange={e=>setProfile(p=>({...p,targetBranch:e.target.value}))}/></label><Button type="submit"><Check size={15}/> Save profile</Button></form></Card><div className="page-stack"><Card><small>YOUR DATA</small><h3>Backup and portability</h3><p className="muted">Download your profile, progress, lectures, attempts, tests, notes and revisions as a JSON file.</p><Button variant="secondary" onClick={exportData}><Download size={15}/> Export my data</Button></Card><Card><small>APPLICATION STATUS</small><h3>Local workspace</h3><div className="metric"><span>Saved storage</span><b>This browser</b></div><div className="metric"><span>Cloud sync</span><b>Not connected</b></div><div className="metric"><span>AI provider</span><b>Optional</b></div><p className="disclaimer">Connect Firebase Authentication, Firestore and Storage before using this app with multiple real student accounts.</p></Card><Card><small>RESET</small><h3>Clear local workspace</h3><Button variant="danger" onClick={()=>{if(confirm("This clears all ACHIEVER data stored in this browser. Export a backup first. Continue?")){localStorage.removeItem("achiever-jee-neet-v1");localStorage.removeItem(FOCUS_KEY);localStorage.removeItem("achiever-onboarded");location.reload();}}}><Trash2 size={15}/> Reset local data</Button></Card></div></div>;
 }
-function Jarvis({state,onClose,onNavigate}:{state:AppState;onClose:()=>void;onNavigate:(p:PageKey)=>void}){
+function Jarvis({state,onClose,onNavigate,onAsk}:{state:AppState;onClose:()=>void;onNavigate:(p:PageKey)=>void;onAsk:(message:string)=>Promise<string>}){
  const [listening,setListening]=useState(false);const [said,setSaid]=useState("");const [reply,setReply]=useState("Namaste. I am J.A.R.V.I.S. Tell me how I can help with your preparation.");const recognition=useRef<any>(null);
  const speak=(text:string)=>{if("speechSynthesis" in window){speechSynthesis.cancel();const v=new SpeechSynthesisUtterance(text);v.lang="en-IN";v.rate=.96;speechSynthesis.speak(v);}};
- const handle=(text:string)=>{const m=text.toLowerCase();let r="I can help plan a study session, review preparation progress and navigate your workspace.";if(m.includes("today")||m.includes("plan")||m.includes("study")){r="Your next step is to choose one pending chapter, solve a short question set and review mistakes. I am opening your roadmap.";onNavigate("roadmap");}else if(m.includes("weak")||m.includes("accuracy")||m.includes("progress")){r="Open AI Analytics to review recorded chapter coverage, question accuracy and test history.";onNavigate("analytics");}else if(m.includes("timer")||m.includes("focus")||m.includes("start")){r="Opening AI Focus. Choose a subject and study mode, then start your session.";onNavigate("focus");}else if(m.includes("test")||m.includes("mock")){r="Opening Mock Tests. Try a practice set and review your score after submission.";onNavigate("mocks");}setSaid(text);setReply(r);speak(r);};
+ const handle=async(text:string)=>{
+  const m=text.toLowerCase();
+  if(m.includes("timer")||m.includes("focus")||m.includes("start study"))onNavigate("focus");
+  else if(m.includes("mock")||m.includes("test"))onNavigate("mocks");
+  else if(m.includes("analytics")||m.includes("weak")||m.includes("accuracy")||m.includes("progress"))onNavigate("analytics");
+  else if(m.includes("roadmap")||m.includes("syllabus"))onNavigate("roadmap");
+  setSaid(text);
+  setReply("Let me check your preparation context…");
+  try{const answer=await onAsk(text);setReply(answer);speak(answer);}
+  catch{const answer="I couldn't reach the mentor service right now. Please try again or open AI Mentor.";setReply(answer);speak(answer);}
+ };
  const listen=()=>{const w=window as any;const Api=w.SpeechRecognition||w.webkitSpeechRecognition;if(!Api){setReply("Voice recognition is not available in this browser. Open AI Mentor to type a message.");return;}try{const r=new Api();r.lang="en-IN";r.interimResults=false;r.maxAlternatives=1;r.onresult=(e:any)=>handle(e.results[0][0].transcript);r.onend=()=>setListening(false);r.onerror=()=>setListening(false);recognition.current=r;r.start();setListening(true);}catch{setListening(false);}};
  useEffect(()=>()=>{recognition.current?.stop();speechSynthesis?.cancel();},[]);
  return <div className="jarvis-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><div className="jarvis-window"><div className="jarvis-head"><b><Brain size={17}/> J.A.R.V.I.S.</b><small>Personal study assistant</small><button onClick={onClose}><X size={18}/></button></div><div className="jarvis-orb-wrap"><div className={"jarvis-orb "+(listening?"listening":"")}><Mic size={31}/></div><span>{listening?"Listening…":"Ready when you are"}</span></div><div className="jarvis-message"><small>ASSISTANT</small><p>{reply}</p>{said&&<em>You said: “{said}”</em>}</div><div className="jarvis-actions"><Button onClick={listen}><Mic size={15}/>{listening?"Listening":"Speak to JARVIS"}</Button><Button variant="secondary" onClick={()=>speak(reply)}><Volume2 size={15}/> Repeat</Button><Button variant="ghost" onClick={()=>{onClose();onNavigate("mentor");}}>Open AI Mentor</Button></div><small className="jarvis-note">Uses your browser's speech features. Live AI answers require provider configuration.</small></div></div>;
