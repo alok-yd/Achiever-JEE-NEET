@@ -21,7 +21,13 @@ export function buildAnalytics(state:AppState,days=30){
  const mistakes:Record<string,number>={};
  attempts.filter(x=>x.result==="incorrect").forEach(x=>{const k=x.mistakeCategory||x.mistake||"Unclassified";mistakes[k]=(mistakes[k]||0)+1;});
  const averageSeconds=counted.length?Math.round(counted.reduce((n,x)=>n+x.seconds,0)/counted.length):0;
- const subjects=subjectStats(state);
+ const allSubjects=subjectStats(state);
+ const subjects=allSubjects.map(subject=>{
+  const subjectAttempts=counted.filter(x=>x.subjectId===subject.id);
+  const subjectCorrect=subjectAttempts.filter(x=>x.result==="correct").length;
+  return {...subject,attempts:subjectAttempts.length,correct:subjectCorrect,
+   accuracy:subjectAttempts.length?Math.round(subjectCorrect/subjectAttempts.length*100):0};
+ });
  const sufficientlySampled=subjects.filter(x=>x.attempts>=5);
  const weakest=sufficientlySampled.slice().sort((a,b)=>a.accuracy-b.accuracy)[0]||null;
  const totalMinutes=sessions.reduce((n,x)=>n+x.minutes,0);
