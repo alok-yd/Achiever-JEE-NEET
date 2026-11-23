@@ -48,6 +48,7 @@ export type StudySession = {
  startedAt?:string; endedAt?:string; note?:string;
 };
 export type HealthChallenge = {id:string;title:string;days:number;goal:"study"|"meditation"|"revision";startDate:string;completedDates:string[];active:boolean};
+export type AIConversationMessage = {id:string;role:"assistant"|"user";text:string;createdAt:string;channel:"mentor"|"jarvis";attachmentNames?:string[]};
 export type DailyTask = {
  id:string; title:string; date:string; subjectId?:string; chapter?:string;
  taskType:"Lecture"|"Questions"|"Revision"|"Mock test"|"Reading"|"Other";
@@ -58,7 +59,7 @@ export type StudyEvent = {id:string;type:"lecture_added"|"lecture_completed"|"ch
 export type AppState = {
  schemaVersion:number; profile:Profile; completedChapters:string[];
  lectures:Lecture[]; attempts:Attempt[]; tests:TestRecord[]; revisions:RevisionItem[];
- notes:Note[]; sessions:StudySession[]; dailyTasks:DailyTask[]; flashcards:Flashcard[]; customQuestions:PracticeQuestion[]; healthChallenges:HealthChallenge[]; ncertCompletedChapters:string[];
+ notes:Note[]; sessions:StudySession[]; dailyTasks:DailyTask[]; flashcards:Flashcard[]; customQuestions:PracticeQuestion[]; healthChallenges:HealthChallenge[]; ncertCompletedChapters:string[]; aiMessages:AIConversationMessage[];
  bookmarkedQuestionIds:string[]; events:StudyEvent[];
  health:{sleep:number;water:number;exercise:number;meditation:number;date:string};
  streak:number; lastStudyDate:string;
@@ -76,7 +77,7 @@ export const defaultState=():AppState=>({
   preparationMode:"Hybrid",learningMedium:"English",currentStatus:"In progress"
  },
  completedChapters:[],lectures:[],attempts:[],tests:[],revisions:[],notes:[],
- sessions:[],dailyTasks:[],flashcards:[],customQuestions:[],healthChallenges:[],ncertCompletedChapters:[],bookmarkedQuestionIds:[],events:[],
+ sessions:[],dailyTasks:[],flashcards:[],customQuestions:[],healthChallenges:[],ncertCompletedChapters:[],aiMessages:[],bookmarkedQuestionIds:[],events:[],
  health:{sleep:7,water:2,exercise:20,meditation:10,date:localDate()},
  streak:0,lastStudyDate:""
 });
@@ -106,6 +107,7 @@ export function loadState():AppState {
    customQuestions:isArray<PracticeQuestion>(parsed.customQuestions)?parsed.customQuestions:[],
    healthChallenges:isArray<HealthChallenge>(parsed.healthChallenges)?parsed.healthChallenges:[],
    ncertCompletedChapters:isArray<string>(parsed.ncertCompletedChapters)?parsed.ncertCompletedChapters:[],
+   aiMessages:isArray<AIConversationMessage>(parsed.aiMessages)?parsed.aiMessages:[],
    bookmarkedQuestionIds:isArray<string>(parsed.bookmarkedQuestionIds)?parsed.bookmarkedQuestionIds:[],
    events:isArray<StudyEvent>(parsed.events)?parsed.events:[],
    health:{...base.health,...(parsed.health||{})},
