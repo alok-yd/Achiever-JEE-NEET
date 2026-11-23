@@ -10,7 +10,7 @@ import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_Q
 import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
-import { firebaseConfigState } from "./services/firebase";
+import { firebaseAuth, firebaseConfigState } from "./services/firebase";
 import { createCloudAccount, signInToCloudAccount, signOutCloudAccount, subscribeToCloudUser } from "./services/firebase-auth";
 import { loadWorkspaceFromCloud, saveWorkspaceToCloud } from "./services/cloud-workspace";
 import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
@@ -181,7 +181,9 @@ export default function App() {
   setMessages(m=>m.concat({role:"user",text:prompt,attachments:files.map(x=>({name:x.file.name,mimeType:x.file.type,previewUrl:x.previewUrl}))}));setMentorInput("");setMentorBusy(true);
   try{
    const attachments=await Promise.all(files.map(async x=>({name:x.file.name,mimeType:x.file.type,dataUrl:await fileToDataUrl(x.file)})));
-   const r=await fetch("/api/mentor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:prompt,context:coachContext(),attachments})});
+   const token=await firebaseAuth?.currentUser?.getIdToken();
+   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;
+   const r=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message:prompt,context:coachContext(),attachments})});
    const d=await r.json();
    const fallback=localCoach(prompt)+(files.length?"\n\nThe selected attachment could not be analysed because live AI is not configured. Configure the server-side AI provider to enable image and PDF question solving.":"");
    setMessages(m=>m.concat({role:"assistant",text:r.ok&&d.reply?d.reply:fallback+(d.error?"\n\nLive AI unavailable: "+d.error:"")}));
@@ -190,7 +192,9 @@ export default function App() {
  };
  const askJarvis=async(message:string)=>{
   try{
-   const response=await fetch("/api/mentor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message,context:coachContext()})});
+   const token=await firebaseAuth?.currentUser?.getIdToken();
+   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;
+   const response=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message,context:coachContext()})});
    const data=await response.json();
    if(response.ok&&data.reply)return String(data.reply);
   }catch{/* Use the local mentor fallback below when the server is unavailable. */}
