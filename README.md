@@ -17,7 +17,7 @@ Create a production build with `npm run build`.
 - Data persists in browser localStorage under `achiever-jee-neet-v1`. Export/backup should be done before clearing browser data.
 
 ## AI Mentor (optional server configuration)
-The UI attempts `POST /api/mentor`. Configure `OPENAI_API_KEY`, optional `OPENAI_MODEL` and `OPENAI_BASE_URL` as server-side environment variables in the hosting provider. Do not put provider keys in frontend `VITE_*` variables. Without a key, the app falls back to a local study-coach response and clearly indicates that a live model is not connected.
+The UI attempts `POST /api/mentor` through the OpenAI Responses API. Configure `OPENAI_API_KEY`, optional `OPENAI_MODEL` and `OPENAI_BASE_URL` as server-side environment variables in the hosting provider. The mentor supports image and PDF question attachments (up to 3 files, total 3 MB) when a multimodal model/provider is configured. Do not put provider keys in frontend `VITE_*` variables. Without a key, the app falls back to a local study-coach response and clearly indicates that a live model is not connected; the offline fallback cannot analyse attachments.
 
 ## Data and exam-pattern notes
 - This repository ships with a **starter curriculum and illustrative practice questions**, not a complete or officially verified PYQ database. Do not label these sample questions as official PYQs.
