@@ -8,13 +8,15 @@ A responsive preparation workspace for JEE Main, JEE Advanced and NEET UG. The i
 npm install
 npm run dev
 ```
-Run unit tests with `npm test`; create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
+Run unit tests with `npm test`; create a production build with `npm run build`. GitHub Actions runs the dependency audit, 14 regression tests, TypeScript check and production build on every push to `main`, then stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
 
 
 ## Publish a static preview (GitHub Pages)
-1. In the repository, open **Settings → Pages** and set the source to **GitHub Actions**.
+1. In the repository, open **Settings → Pages** and set the source to **GitHub Actions** (a repository admin must do this once).
 2. Open **Actions → Deploy ACHIEVER JEE/NEET preview → Run workflow**.
-3. After it succeeds, GitHub shows the public Pages URL on the workflow run.
+3. After it succeeds, GitHub shows the Pages URL in the deployment job.
+
+If Pages settings are not enabled for the repository, the workflow cannot publish until an admin enables them.
 
 The Pages build is a static client preview. It supports local browser storage and the local mentor fallback, but it does **not** run `api/mentor.ts`; live model inference and image/PDF analysis need a server deployment (for example, Vercel) with secured environment variables and an authenticated/rate-limited endpoint.
 
