@@ -82,6 +82,61 @@ export const defaultState=():AppState=>({
  streak:0,lastStudyDate:""
 });
 const KEY="achiever-jee-neet-v1";
+export const LEGACY_JEE_CHAPTER_ALIASES:Record<string,string>={
+  "Units & Measurements": "Units and Measurements",
+  "Work, Energy & Power": "Work, Energy and Power",
+  "Properties of Matter": "Properties of Solids and Liquids",
+  "Kinetic Theory": "Kinetic Theory of Gases",
+  "Oscillations & Waves": "Oscillations and Waves",
+  "Magnetism": "Magnetic Effects of Current and Magnetism",
+  "Electromagnetic Induction": "Electromagnetic Induction and Alternating Currents",
+  "Alternating Current": "Electromagnetic Induction and Alternating Currents",
+  "Dual Nature": "Dual Nature of Matter and Radiation",
+  "Atoms & Nuclei": "Atoms and Nuclei",
+  "Some Basic Concepts": "Some Basic Concepts in Chemistry",
+  "Chemical Bonding": "Chemical Bonding and Molecular Structure",
+  "Redox Reactions": "Redox Reactions and Electrochemistry",
+  "Electrochemistry": "Redox Reactions and Electrochemistry",
+  "Periodic Classification": "Classification of Elements and Periodicity in Properties",
+  "Purification & Characterisation": "Purification and Characterisation of Organic Compounds",
+  "Basic Organic Chemistry": "Some Basic Principles of Organic Chemistry",
+  "Organic Compounds with Halogens": "Organic Compounds Containing Halogens",
+  "Oxygen-containing Compounds": "Organic Compounds Containing Oxygen",
+  "Nitrogen-containing Compounds": "Organic Compounds Containing Nitrogen",
+  "Sets, Relations & Functions": "Sets, Relations and Functions",
+  "Complex Numbers": "Complex Numbers and Quadratic Equations",
+  "Quadratic Equations": "Complex Numbers and Quadratic Equations",
+  "Matrices & Determinants": "Matrices and Determinants",
+  "Binomial Theorem": "Binomial Theorem and its Simple Applications",
+  "Sequences & Series": "Sequence and Series",
+  "Limits & Continuity": "Limit, Continuity and Differentiability",
+  "Differentiation": "Limit, Continuity and Differentiability",
+  "Indefinite Integration": "Integral Calculus",
+  "Definite Integration": "Integral Calculus",
+  "Three-dimensional Geometry": "Three-Dimensional Geometry",
+  "Statistics & Probability": "Statistics and Probability"
+};
+export const mapLegacyJeeChapter=(chapter:string)=>LEGACY_JEE_CHAPTER_ALIASES[chapter]||chapter;
+function migrateLegacyJeeChapterNames(state:AppState):AppState{
+ if(state.profile.exam!=="JEE")return state;
+ const map=(chapter?:string)=>chapter?mapLegacyJeeChapter(chapter):chapter;
+ const keyMap=(value:string)=>{
+  const split=value.indexOf("::");if(split<0)return value;
+  const subject=value.slice(0,split),chapter=value.slice(split+2);
+  return subject+"::"+mapLegacyJeeChapter(chapter);
+ };
+ return {
+  ...state,
+  completedChapters:Array.from(new Set(state.completedChapters.map(keyMap))),
+  lectures:state.lectures.map(x=>({...x,chapter:map(x.chapter)!})),
+  attempts:state.attempts.map(x=>({...x,chapter:map(x.chapter)!})),
+  revisions:state.revisions.map(x=>({...x,chapter:map(x.chapter)!})),
+  notes:state.notes.map(x=>({...x,chapter:map(x.chapter)})),
+  dailyTasks:state.dailyTasks.map(x=>({...x,chapter:map(x.chapter)})),
+  flashcards:state.flashcards.map(x=>({...x,chapter:map(x.chapter)!})),
+  customQuestions:state.customQuestions.map(x=>({...x,chapter:map(x.chapter)!}))
+ };
+}
 const isArray=<T,>(v:unknown):v is T[]=>Array.isArray(v);
 export function loadState():AppState {
  try {
@@ -113,7 +168,7 @@ export function loadState():AppState {
    health:{...base.health,...(parsed.health||{})},
    schemaVersion:2
   };
-  return safe;
+  return migrateLegacyJeeChapterNames(safe);
  }catch{return defaultState();}
 }
 export function saveState(state:AppState){
