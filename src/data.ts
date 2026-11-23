@@ -42,7 +42,7 @@ export const CURRICULA: Record<ExamKey, Subject[]> = {
 };
 export const SYLLABUS_STATUS:Record<ExamKey,{status:"official-2027"|"provisional-2027";label:string;source:string;details:string}> = {
  JEE:{status:"official-2027",label:"NTA JEE Main 2027 Paper 1 unit headings",source:"https://jeemain.nta.nic.in/document/syllabus-2027/",details:"The NTA JEE Main 2027 syllabus listing is published. This Roadmap uses its 20 Physics, 20 Chemistry and 14 Mathematics unit headings. Verify the full subtopic wording against the official PDF; this screen tracks units, not every line item."},
- NEET:{status:"provisional-2027",label:"Provisional planning map — NEET UG 2027 bulletin pending",source:"https://neet.nta.nic.in/",details:"As of 23 November 2026, the NTA NEET portal lists 2026 information bulletin and syllabus documents, not a 2027 syllabus. These chapter labels are planning aids only. Do not assume the 2026 NEET syllabus or pattern is confirmed for 2027."}
+ NEET:{status:"provisional-2027",label:"Provisional planning map — NEET UG 2027 syllabus PDF pending",source:"https://neet.nta.nic.in/",details:"NTA’s current NEET UG 2027 overview publishes the exam-format summary and says the information bulletin is expected in February 2027. The current documents list still shows the 2026 syllabus, so these chapter labels remain planning aids, not a confirmed NEET UG 2027 syllabus."}
 };
 export const SUBJECT_GROUPS:Record<ExamKey,Record<string,string[]>>={
  JEE:{
@@ -105,7 +105,7 @@ export const SAMPLE_QUESTIONS: Record<ExamKey, PracticeQuestion[]> = {
 };
 export const EXAM_RULES = {
  JEE:{label:"JEE Main Paper 1 (2027)",durationMinutes:180,questions:75,answerable:75,marksCorrect:4,marksWrong:-1,totalMarks:300,mode:"Computer-based test",note:"NTA JEE Main 2027: 75 compulsory questions, 25 each in Physics, Chemistry and Mathematics; 3 hours and 300 marks. Recheck the candidate-specific schedule and final bulletin."},
- NEET:{label:"NEET UG (2027)",durationMinutes:null,questions:null,answerable:null,marksCorrect:null,marksWrong:null,totalMarks:null,mode:"Pending official 2027 information bulletin",note:"The NTA NEET portal currently lists 2026 information bulletin and syllabus documents only. Date, duration, question count, answerable count, total marks and marking for NEET UG 2027 remain unconfirmed as of 23 November 2026."}
+ NEET:{label:"NEET UG (2027)",durationMinutes:200,questions:200,answerable:180,marksCorrect:4,marksWrong:-1,totalMarks:720,mode:"Pen-and-paper (OMR-based test)",note:"NTA’s current NEET UG 2027 overview lists 200 questions (180 to be answered), 3 hours 20 minutes, 720 marks and +4/−1/0. The detailed bulletin is expected in February 2027; subject-wise question counts and syllabus still need confirmation."}
 } as const;
 export const EXAM_DATES: Record<ExamKey,string> = {JEE:"",NEET:""};
 export const PAGE_ITEMS = [
