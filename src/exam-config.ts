@@ -31,14 +31,14 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
   notes:"The official JEE Advanced 2027 site lists the examination on 23 May 2027. Its 2027 paper structure and marking scheme are deliberately not assumed here; configure them from the official information brochure when published."
  },
  "neet-ug":{
-  id:"neet-ug",name:"NEET UG (2027)",exam:"NEET",year:"2027",
-  patternVersion:"NTA-NEET-UG-2027-not-yet-published",
-  durationMinutes:null,questionCount:null,answerableCount:null,totalMarks:null,mode:"Pending 2027 information bulletin",
-  status:"pending-bulletin",correctMarks:null,wrongMarks:null,unansweredMarks:0,
+  id:"neet-ug",name:"NEET UG",exam:"NEET",year:"2027",
+  patternVersion:"NTA-NEET-UG-2027-overview-bulletin-pending",
+  durationMinutes:200,questionCount:200,answerableCount:180,totalMarks:720,mode:"Pen-and-paper (OMR-based test)",
+  status:"pending-bulletin",correctMarks:4,wrongMarks:-1,unansweredMarks:0,
   sections:[{id:"physics",label:"Physics",questionCount:null},{id:"chemistry",label:"Chemistry",questionCount:null},{id:"biology",label:"Biology",questionCount:null}],
-  dateLabel:"Not confirmed on the official NTA NEET portal as of 23 November 2026. The portal currently links to NEET UG 2026 information only; wait for the 2027 bulletin before fixing date, duration, question count or marking.",
-  officialSource:"https://neet.nta.nic.in/",
-  notes:"NEET UG 2027 exam date, question structure, answerable count, duration, marks, marking scheme and syllabus are not confirmed in the currently published official NTA portal content. The portal currently lists a NEET UG 2026 bulletin and syllabus. Do not reuse the 2026 pattern as a confirmed 2027 pattern. Update this versioned configuration when NTA publishes the 2027 information bulletin."
+  dateLabel:"NTA's current 2027 overview indicates the first Sunday of May 2027 (2 May 2027 by calendar). Confirm the final schedule and instructions in the information bulletin expected in February 2027.",
+  exactDate:"2027-05-02",officialSource:"https://nta.gov.in/exams/neet/",
+  notes:"NTA's current NEET UG 2027 overview lists pen-and-paper OMR mode, 3 hours 20 minutes, 200 questions across Physics, Chemistry and Biology (180 to be answered), 720 marks and +4/−1/0. It indicates the first Sunday of May 2027; the detailed information bulletin is expected in February 2027. Subject-wise question counts and the 2027 syllabus PDF still need confirmation from the bulletin, so full-length mock simulation remains locked until the section structure is confirmed."
 }
 };
 export const DEFAULT_TRACK:Record<ExamKey,ExamTrack>={JEE:"jee-main",NEET:"neet-ug"};
