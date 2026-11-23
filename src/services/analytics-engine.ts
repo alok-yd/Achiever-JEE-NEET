@@ -5,7 +5,8 @@ import {SAMPLE_QUESTIONS} from "../data";
 const dateKey=(date:Date)=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
 export function buildAnalytics(state:AppState,days=30){
  const today=new Date();const from=new Date(today);from.setDate(today.getDate()-days+1);
- const inRange=(date:string)=>{const d=new Date(date+"T12:00:00");return d>=from&&d<=today;};
+ const todayKey=dateKey(today);const fromKey=dateKey(from);
+ const inRange=(date:string)=>date>=fromKey&&date<=todayKey;
  const sessions=state.sessions.filter(x=>inRange(x.date));
  const attempts=state.attempts.filter(x=>inRange(x.date));
  const counted=attempts.filter(x=>x.result!=="skipped");
