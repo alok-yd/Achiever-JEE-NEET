@@ -33,10 +33,10 @@ export const SAMPLE_QUESTIONS: Record<ExamKey, PracticeQuestion[]> = {
  ]
 };
 export const EXAM_RULES = {
- JEE:{label:"JEE Main Paper 1 (2027)",durationMinutes:180,questions:75,answerable:75,marksCorrect:4,marksWrong:-1,totalMarks:300,mode:"Computer-based test",note:"Official NTA portal summary, checked 23 Nov 2026. Practice templates may contain fewer sample questions."},
- NEET:{label:"NEET UG (2027)",durationMinutes:200,questions:200,answerable:180,marksCorrect:4,marksWrong:-1,totalMarks:720,mode:"Pen-and-paper / OMR",note:"NTA portal currently lists 200 questions, of which candidates answer 180; 3 h 20 min. Bulletin is expected in February 2027; re-check before finalizing."}
+ JEE:{label:"JEE Main Paper 1 (2027)",durationMinutes:180,questions:75,answerable:75,marksCorrect:4,marksWrong:-1,totalMarks:300,mode:"Computer-based test",note:"NTA 2027 Paper 1 reference: 75 compulsory questions (25 per subject), 3 hours, 300 marks, +4/−1/0. The full pattern should be rechecked against the latest information bulletin."},
+ NEET:{label:"NEET UG (2027)",durationMinutes:200,questions:200,answerable:180,marksCorrect:4,marksWrong:-1,totalMarks:720,mode:"Pen-and-paper / OMR",note:"NTA portal currently lists 200 questions, of which candidates answer 180; 3 h 20 min, 720 marks and +4/−1/0. The 2027 information bulletin is expected in February; exact exam date is not set here."}
 } as const;
-export const EXAM_DATES: Record<ExamKey,string> = {JEE:"2027-01-20",NEET:"2027-05-02"};
+export const EXAM_DATES: Record<ExamKey,string> = {JEE:"2027-01-20",NEET:""};
 export const PAGE_ITEMS = [
  ["Dashboard","dashboard"],["Roadmap","roadmap"],["AI Focus","focus"],["Lecture Tracker","lectures"],["PYQ Execution Tracker","pyq"],["Question Bank","questions"],["Mock Tests","mocks"],["Test Performance","performance"],["Revision","revision"],["Digital Notebook","notebook"],["Health Tracker","health"],["AI Mentor","mentor"],["AI Analytics","analytics"],["Strategy & Tips","strategy"],["Settings","settings"]
 ] as const;
