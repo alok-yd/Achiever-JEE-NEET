@@ -5,10 +5,10 @@ A responsive preparation workspace for JEE Main, JEE Advanced and NEET UG. The i
 
 ## Run locally
 ```bash
-npm install
+npm ci
 npm run dev
 ```
-Run unit tests with `npm test`; create a production build with `npm run build`. GitHub Actions runs the dependency audit, 14 regression tests, TypeScript check and production build on every push to `main`, then stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
+Run unit tests with `npm test`; create a production build with `npm run build`. GitHub Actions runs the dependency audit, 14 regression tests, TypeScript check and production build on every push to `main` using the committed `package-lock.json` and `npm ci`, then stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
 
 
 ## Publish a static preview (GitHub Pages)
