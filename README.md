@@ -8,7 +8,7 @@ A responsive preparation workspace for JEE Main, JEE Advanced and NEET UG. The i
 npm install
 npm run dev
 ```
-Create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
+Run unit tests with `npm test`; create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
 
 
 ## Publish a static preview (GitHub Pages)
