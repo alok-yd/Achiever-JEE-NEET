@@ -1,1 +1,1 @@
-{"name":"ACHIEVER JEE/NEET","short_name":"ACHIEVER","description":"AI Learning & Intelligence","start_url":"/","display":"standalone","background_color":"#f8fafc","theme_color":"#0f172a","icons":[{"src":"/achiever-logo.svg","sizes":"any","type":"image/svg+xml"}]}
+{"name":"ACHIEVER JEE/NEET","short_name":"ACHIEVER","description":"AI Learning & Intelligence","start_url":"./","scope":"./","display":"standalone","background_color":"#f8fafc","theme_color":"#0f172a","icons":[{"src":"./achiever-logo.svg","sizes":"any","type":"image/svg+xml"}]}
