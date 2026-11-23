@@ -61,3 +61,23 @@
  .cloud-actions{flex-direction:column}
  .cloud-account .cloud-user{flex-wrap:wrap}
 }
+
+
+/* NCERT reading and wellness challenge controls */
+.ncert-button{border:1px solid #e2e8f0;background:#fff;color:#7d8da2;border-radius:7px;padding:6px 8px;font-size:8px;font-weight:700;white-space:nowrap;flex:none}
+.ncert-button.read{border-color:#b7e6d2;background:#e8f8f1;color:#11845f}
+.challenge-templates{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0 15px}
+.challenge-template{display:flex;align-items:center;gap:8px;text-align:left;background:#f9fafc;border:1px solid #e7ebf2;border-radius:9px;padding:10px;color:#56667e;font-size:9px;font-weight:650}
+.challenge-template:hover{border-color:#c4c1f3;background:#fbfbff;color:#4f49c7}
+.challenge-template span{display:flex;flex-direction:column;gap:3px}
+.challenge-template small{font-size:8px;font-weight:400;color:#929eaf}
+.challenge-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #edf0f5}
+.challenge-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.challenge-info b{font-size:10px;color:#34435b}
+.challenge-info small{font-size:8px;color:#8b97a9}
+.challenge-check{font-size:9px;min-height:31px;padding:7px 10px}
+.source-meta{margin-top:5px}
+.extra-filters{margin-top:8px}
+.extra-filters select{min-width:140px}
+@media(max-width:780px){.challenge-templates{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.challenge-row{flex-wrap:wrap}.challenge-info{flex-basis:100%}.ncert-button{font-size:7px;padding:5px 6px}}
