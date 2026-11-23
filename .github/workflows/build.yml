@@ -39,6 +39,8 @@ jobs:
           git commit -m "chore: lock audited npm dependency tree"
           git push
   build:
+    needs: lockfile
+    if: ${{ always() && (needs.lockfile.result == 'success' || needs.lockfile.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -47,6 +49,9 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Refresh main after lockfile update
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: git pull --ff-only origin main
       - name: Install dependencies
         run: npm ci
       - name: Report dependency audit findings
