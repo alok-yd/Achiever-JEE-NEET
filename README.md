@@ -8,7 +8,7 @@ A responsive preparation workspace for JEE Main, JEE Advanced and NEET UG. The i
 npm install
 npm run dev
 ```
-Create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days.
+Create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
 
 ## What works in this starter application
 - Student profile and exam selection (JEE / NEET), saved locally in the browser.
@@ -27,4 +27,4 @@ The UI attempts `POST /api/mentor` through the OpenAI Responses API. Configure `
 - Official reference pages: https://www.nta.gov.in/exams/jee/ · https://nta.gov.in/exams/neet/ · https://jeeadv.ac.in/
 
 ## Production readiness
-This first implementation is a functional client-side workspace with local persistence. Before enrolling real students, integrate and test Firebase Authentication/Firestore/Storage with owner-only security rules and UID-scoped cloud sync, configure and test the AI provider, publish a reviewed official syllabus/question bank with source rights, implement webcam-backed presence verification if required, and run end-to-end/accessibility/security tests. Never store API secrets in the browser.
+This first implementation is a functional client-side workspace with local persistence. Before public production use, integrate Firebase Authentication/Firestore/Storage with owner-only security rules and UID-scoped cloud sync; protect `/api/mentor` with authentication, quotas and rate limiting before adding a billable API key; configure and test the AI provider; publish a reviewed official syllabus/question bank with appropriate content rights; implement webcam-backed presence verification if required; and complete end-to-end, accessibility and security testing. The current localStorage workspace is device/browser-specific and is not suitable for shared or multi-device accounts. Never store API secrets in the browser.
