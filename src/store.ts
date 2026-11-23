@@ -27,7 +27,7 @@ export type Attempt = {
 };
 export type TestRecord = {
  id:string; title:string; exam:ExamKey; examTrack?:ExamTrack; patternVersion?:string;
- testType?:"Full mock"|"Subject test"|"Chapter test"|"Topic test"|"PYQ paper"|"Starter practice";
+ testType?:"Full mock"|"Subject test"|"Chapter test"|"Topic test"|"PYQ paper"|"Starter practice"|"Custom";
  score:number; maxScore:number; scoreUnit?:"marks"|"raw correct";
  date:string; correct:number; incorrect:number; skipped:number; accuracy:number;
  durationMinutes:number; subjectScores:Record<string,number>;
