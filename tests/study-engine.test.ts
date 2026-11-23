@@ -2,7 +2,7 @@ import {describe,it,expect} from "vitest";
 import {defaultState,subjectStats,type Attempt} from "../src/store";
 import {buildAnalytics,buildStudentContext} from "../src/services/analytics-engine";
 import {createMistakeRevision,markAttemptWithRevision,scheduleChapterRevision} from "../src/services/study-engine";
-import {EXAM_TRACKS,scoreForTrack} from "../src/exam-config";
+import {EXAM_TRACKS,hasFullMockCoverage,scoreForTrack} from "../src/exam-config";
 import {CHAPTER_GROUPS,CURRICULA} from "../src/data";
 import {mapLegacyJeeChapter} from "../src/store";
 
@@ -92,6 +92,14 @@ describe("syllabus migration and coverage",()=>{
    }
   }
  });
+ it("keeps sample questions mapped to an existing planning unit",()=>{
+  const {SAMPLE_QUESTIONS}=require("../src/data") as typeof import("../src/data");
+  for(const exam of ["JEE","NEET"] as const){
+   for(const question of SAMPLE_QUESTIONS[exam]){
+    expect(CURRICULA[exam].find(subject=>subject.id===question.subjectId)?.chapters).toContain(question.chapter);
+   }
+  }
+ });
  it("has the published JEE Main 2027 unit counts",()=>{
   expect(CURRICULA.JEE.find(x=>x.id==="physics")?.chapters).toHaveLength(20);
   expect(CURRICULA.JEE.find(x=>x.id==="chemistry")?.chapters).toHaveLength(20);
@@ -100,6 +108,14 @@ describe("syllabus migration and coverage",()=>{
 });
 
 describe("exam configuration",()=>{
+ it("unlocks a JEE Main full mock only for an exact, balanced 75-question paper",()=>{
+  const balanced=[...Array(25).fill({subjectId:"physics"}),...Array(25).fill({subjectId:"chemistry"}),...Array(25).fill({subjectId:"mathematics"})];
+  expect(hasFullMockCoverage("jee-main",balanced)).toBe(true);
+  expect(hasFullMockCoverage("jee-main",balanced.slice(0,74))).toBe(false);
+  expect(hasFullMockCoverage("jee-main",[...balanced.slice(0,25),...balanced.slice(25,50),...Array(25).fill({subjectId:"physics"})])).toBe(false);
+  expect(hasFullMockCoverage("jee-advanced",balanced)).toBe(false);
+  expect(hasFullMockCoverage("neet-ug",balanced)).toBe(false);
+ });
  it("keeps JEE Main scoring separate from JEE Advanced variable scoring",()=>{
   expect(scoreForTrack("jee-main",10,2)).toEqual({score:38,maxScore:48,scoreUnit:"marks"});
   expect(scoreForTrack("jee-advanced",10,2)).toEqual({score:10,maxScore:12,scoreUnit:"raw correct"});
