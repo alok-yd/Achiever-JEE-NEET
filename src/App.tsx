@@ -3,7 +3,7 @@ import {
  Activity, ArrowRight, BarChart3, BookOpen, Brain, CalendarDays, Check, CheckCircle2,
  ChevronDown, ChevronRight, Clock3, Download, Eye, FileText, Flame, GraduationCap,
  Heart, HeartPulse, LayoutDashboard, Lightbulb, ListChecks, Menu, Mic, Pause, Play,
- Plus, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target,
+ Plus, Paperclip, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target,
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
 import { CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
@@ -12,11 +12,15 @@ import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid
 type PageKey = typeof PAGE_ITEMS[number][1];
 type FocusMode = "Lecture" | "Practice" | "Revision" | "Reading" | "Mock test";
 type FocusData = { elapsed:number; startedAt:number|null; running:boolean; mode:FocusMode; subjectId:string };
+type ChatAttachment = { name:string; mimeType:string; previewUrl?:string };
+type ChatMessage = { role:"assistant"|"user"; text:string; attachments?:ChatAttachment[] };
+type PendingChatFile = { file:File; previewUrl?:string };
 const FOCUS_KEY = "achiever-focus-session-v1";
 const today = () => new Date().toISOString().slice(0,10);
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
 const fmt = (n:number) => { const h=Math.floor(n/3600), m=Math.floor(n%3600/60), s=Math.floor(n%60); return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0"); };
 const dateLabel = (v:string) => new Date(v+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+const fileToDataUrl = (file:File) => new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==="string"?resolve(reader.result):reject(new Error("Could not read file"));reader.onerror=()=>reject(new Error("Could not read file"));reader.readAsDataURL(file);});
 const getFocus = ():FocusData => { try { const v=JSON.parse(localStorage.getItem(FOCUS_KEY)||"null"); if(!v) return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; const recoveredElapsed=Number(v.elapsed||0)+(v.running&&v.startedAt?Math.max(0,Math.floor((Date.now()-v.startedAt)/1000)):0); return {...v,elapsed:recoveredElapsed,running:false,startedAt:null}; } catch { return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; } };
 const pageInfo:Record<PageKey,{title:string;sub:string}> = {
  dashboard:{title:"Dashboard",sub:"Your preparation, progress and next steps — all in one place."},
@@ -60,7 +64,7 @@ export default function App() {
  const [jarvis,setJarvis] = useState(false);
  const [mentorInput,setMentorInput] = useState("");
  const [mentorBusy,setMentorBusy] = useState(false);
- const [messages,setMessages] = useState<{role:"assistant"|"user";text:string}[]>([{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or ask me to review your preparation."}]);
+ const [messages,setMessages] = useState<ChatMessage[]>([{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
  const subjects = CURRICULA[state.profile.exam];
  const stats = useMemo(()=>subjectStats(state),[state]);
  const chapterTotal = stats.reduce((n,x)=>n+x.total,0);
@@ -113,14 +117,17 @@ export default function App() {
   if(m.includes("progress")||m.includes("syllabus")) return "You have marked "+chapterDone+" of "+chapterTotal+" starter syllabus chapters complete ("+syllabusPct+"%). Check the roadmap against the official "+state.profile.exam+" "+state.profile.targetYear+" syllabus before relying on it as complete.";
   return "I can help with "+state.profile.exam+" concepts, study plans, revision and test analysis. Your workspace currently records "+state.attempts.length+" practice attempts, "+state.tests.length+" tests and "+studyMinutes+" study minutes. Connect a server-side AI provider for model-powered tutoring.";
  };
- const askMentor=async(message:string)=>{
-  if(!message.trim())return;
-  setMessages(m=>m.concat({role:"user",text:message}));setMentorInput("");setMentorBusy(true);
+ const askMentor=async(message:string,files:PendingChatFile[] = [])=>{
+  if(!message.trim()&&!files.length)return;
+  const prompt=message.trim()||"Please inspect the attached question or study document and explain it step by step.";
+  setMessages(m=>m.concat({role:"user",text:prompt,attachments:files.map(x=>({name:x.file.name,mimeType:x.file.type,previewUrl:x.previewUrl}))}));setMentorInput("");setMentorBusy(true);
   try{
-   const r=await fetch("/api/mentor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message,context:coachContext()})});
+   const attachments=await Promise.all(files.map(async x=>({name:x.file.name,mimeType:x.file.type,dataUrl:await fileToDataUrl(x.file)})));
+   const r=await fetch("/api/mentor",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:prompt,context:coachContext(),attachments})});
    const d=await r.json();
-   setMessages(m=>m.concat({role:"assistant",text:r.ok&&d.reply?d.reply:localCoach(message)+(d.error?"\n\nLive AI unavailable: "+d.error:"")}));
-  }catch{setMessages(m=>m.concat({role:"assistant",text:localCoach(message)}));}
+   const fallback=localCoach(prompt)+(files.length?"\n\nThe selected attachment could not be analysed because live AI is not configured. Configure the server-side AI provider to enable image and PDF question solving.":"");
+   setMessages(m=>m.concat({role:"assistant",text:r.ok&&d.reply?d.reply:fallback+(d.error?"\n\nLive AI unavailable: "+d.error:"")}));
+  }catch{setMessages(m=>m.concat({role:"assistant",text:localCoach(prompt)+(files.length?"\n\nThe attachment could not be sent. Check its size and try again.":"")}));}
   finally{setMentorBusy(false);}
  };
  const pageBody=()=>{
@@ -278,9 +285,48 @@ function Health({state,update}:{state:AppState;update:(fn:(s:AppState)=>AppState
 function HealthMetric(p:{title:string;value:number;unit:string;min:number;max:number;step:number;icon:React.ElementType;change:(v:number)=>void;detail:string}){
  const Icon=p.icon;return <Card className="health-metric"><i><Icon size={19}/></i><h3>{p.title}</h3><b>{p.value}<small>{p.unit}</small></b><input type="range" min={p.min} max={p.max} step={p.step} value={p.value} onChange={e=>p.change(Number(e.target.value))}/><span>{p.detail}</span></Card>;
 }
-function Mentor({messages,input,setInput,send,busy}:{messages:{role:"assistant"|"user";text:string}[];input:string;setInput:(s:string)=>void;send:(s:string)=>void;busy:boolean}){
- const bottom=useRef<HTMLDivElement>(null);useEffect(()=>bottom.current?.scrollIntoView({behavior:"smooth"}),[messages,busy]);
- return <div className="mentor-layout"><Card className="mentor-chat"><div className="mentor-head"><i><Brain size={22}/></i><span><b>ACHIEVER AI Mentor</b><small><i className="live-dot"/> Local study coach • live AI optional</small></span><Pill tone="blue">JEE / NEET</Pill></div><div className="chat-messages">{messages.map((m,i)=><div className={"chat-row "+m.role} key={i}><i>{m.role==="assistant"?<Sparkles size={15}/>:<GraduationCap size={15}/>}</i><div>{m.text.split("\n").map((line,j)=><p key={j}>{line}</p>)}</div></div>)}{busy&&<div className="chat-row assistant"><i><Sparkles size={15}/></i><div>Preparing a response…</div></div>}<div ref={bottom}/></div><form className="chat-composer" onSubmit={e=>{e.preventDefault();send(input);}}><textarea rows={2} value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask a concept doubt or request a study plan..."/><Button type="submit" disabled={busy||!input.trim()}><Send size={16}/> Send</Button></form><small className="disclaimer">Verify important academic solutions with a trusted textbook or teacher. Without provider configuration, this page uses local study-coach responses.</small></Card><Card><small>TRY ASKING</small><h3>Study prompts</h3>{["Make my study plan for today","Which subject needs more attention?","How can I improve question accuracy?","Explain a concept step by step"].map(x=><button className="prompt" key={x} onClick={()=>send(x)}>{x}<ArrowRight size={13}/></button>)}<p className="disclaimer">The mentor uses your selected examination and locally recorded preparation data.</p></Card></div>;
+function Mentor({messages,input,setInput,send,busy}:{messages:ChatMessage[];input:string;setInput:(s:string)=>void;send:(s:string,files?:PendingChatFile[])=>void;busy:boolean}){
+ const [files,setFiles]=useState<PendingChatFile[]>([]);
+ const [fileError,setFileError]=useState("");
+ const inputRef=useRef<HTMLInputElement>(null);
+ const bottom=useRef<HTMLDivElement>(null);
+ useEffect(()=>bottom.current?.scrollIntoView({behavior:"smooth"}),[messages,busy]);
+ const addFiles=(list:FileList|null)=>{
+  if(!list)return;
+  setFileError("");
+  const incoming=Array.from(list);
+  const allowed=incoming.filter(f=>f.type.startsWith("image/")||f.type==="application/pdf");
+  if(allowed.length!==incoming.length)setFileError("Only image files and PDF documents are supported.");
+  const room=3-files.length;
+  const chosen=allowed.slice(0,Math.max(0,room));
+  if(allowed.length>room)setFileError("Attach up to 3 files per message.");
+  let size=files.reduce((n,x)=>n+x.file.size,0);
+  const accepted:PendingChatFile[]=[];
+  for(const file of chosen){
+   if(file.size>2_500_000||size+file.size>3_000_000){setFileError("Each file must be under 2.5 MB and total attachments under 3 MB.");continue;}
+   accepted.push({file,previewUrl:file.type.startsWith("image/")?URL.createObjectURL(file):undefined});
+   size+=file.size;
+  }
+  if(accepted.length)setFiles(v=>v.concat(accepted));
+  if(inputRef.current)inputRef.current.value="";
+ };
+ const removeFile=(index:number)=>{
+  setFiles(v=>{const target=v[index];if(target?.previewUrl)URL.revokeObjectURL(target.previewUrl);return v.filter((_,i)=>i!==index);});
+ };
+ const submit=(e:React.FormEvent)=>{
+  e.preventDefault();
+  if(busy||(!input.trim()&&!files.length))return;
+  send(input,files);setInput("");setFiles([]);setFileError("");
+ };
+ return <div className="mentor-layout"><Card className="mentor-chat"><div className="mentor-head"><i><Brain size={22}/></i><span><b>ACHIEVER AI Mentor</b><small><i className="live-dot"/> Local study coach • live AI optional</small></span><Pill tone="blue">JEE / NEET</Pill></div>
+  <div className="chat-messages">{messages.map((m,i)=><div className={"chat-row "+m.role} key={i}><i>{m.role==="assistant"?<Sparkles size={15}/>:<GraduationCap size={15}/>}</i><div>{m.attachments?.length>0&&<div className="chat-attachments">{m.attachments.map((a,j)=><div className="chat-attachment" key={j}>{a.previewUrl?<img src={a.previewUrl} alt={a.name}/>:<FileText size={19}/>}<span>{a.name}</span></div>)}</div>}{m.text.split("\n").map((line,j)=><p key={j}>{line}</p>)}</div></div>)}{busy&&<div className="chat-row assistant"><i><Sparkles size={15}/></i><div>Preparing a response…</div></div>}<div ref={bottom}/></div>
+  <form className="chat-composer" onSubmit={submit}>
+   {files.length>0&&<div className="pending-files">{files.map((f,i)=><div className="pending-file" key={i}>{f.previewUrl?<img src={f.previewUrl} alt={f.file.name}/>:<FileText size={17}/>}<span>{f.file.name}</span><button type="button" onClick={()=>removeFile(i)} aria-label={"Remove "+f.file.name}><X size={14}/></button></div>)}</div>}
+   {fileError&&<div className="file-error">{fileError}</div>}
+   <div className="composer-row"><input ref={inputRef} type="file" hidden multiple accept="image/*,application/pdf" onChange={e=>addFiles(e.target.files)}/><button type="button" className="attach-button" title="Attach question image or PDF" onClick={()=>inputRef.current?.click()} disabled={busy}><Paperclip size={18}/><span>Attach image / PDF</span></button><textarea rows={2} value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask a doubt or attach a question image / PDF..."/><Button type="submit" disabled={busy||(!input.trim()&&!files.length)}><Send size={16}/> Send</Button></div>
+  </form>
+  <small className="disclaimer">Images and PDFs are sent only when you press Send. Live attachment analysis requires the server-side AI provider; without it, the local coach cannot read files.</small>
+ </Card><Card><small>TRY ASKING</small><h3>Study prompts</h3>{["Make my study plan for today","Which subject needs more attention?","How can I improve question accuracy?","Explain a concept step by step"].map(x=><button className="prompt" key={x} onClick={()=>send(x,[])}>{x}<ArrowRight size={13}/></button>)}<p className="disclaimer">The mentor uses your selected examination and locally recorded preparation data.</p></Card></div>;
 }
 function Analytics({state,stats,syllabusPct,accuracy,studyMinutes}:{state:AppState;stats:ReturnType<typeof subjectStats>;syllabusPct:number;accuracy:number;studyMinutes:number}){
  const max=Math.max(1,...state.sessions.map(x=>x.minutes));
