@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Report dependency audit findings
         run: |
           npm audit --json > npm-audit.json || true
