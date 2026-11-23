@@ -24,8 +24,12 @@ The Pages build is a static client preview. It supports local browser storage an
 - Incorrect question attempts can create revision items; test attempts and focus sessions flow into analytics.
 - Data persists in browser localStorage under `achiever-jee-neet-v1`. Export/backup should be done before clearing browser data.
 
+## Firebase project setup (optional cloud accounts)
+
+See [`docs/FIREBASE_SETUP.md`](docs/FIREBASE_SETUP.md) before enabling cloud accounts. The repository contains optional Firebase Authentication, App Check, Firestore sync and owner-only Firestore/Storage rules, but it does not contain a Firebase project ID or service-account key. Create a **new, separate JEE/NEET Firebase project**; do not point this app at the existing GATE project's database. Cloud push/restore is user-triggered and replaces the selected user's matching cloud collections or browser snapshot only after confirmation.
+
 ## AI Mentor (optional server configuration)
-The UI attempts `POST /api/mentor` through the OpenAI Responses API. Configure `OPENAI_API_KEY`, optional `OPENAI_MODEL` and `OPENAI_BASE_URL` as server-side environment variables in the hosting provider. The mentor supports image and PDF question attachments (up to 3 files, total 3 MB) when a multimodal model/provider is configured. Do not put provider keys in frontend `VITE_*` variables. Without a key, the app falls back to a local study-coach response and clearly indicates that a live model is not connected; the offline fallback cannot analyse attachments.
+The UI attempts `POST /api/mentor` through the OpenAI Responses API. Configure `OPENAI_API_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, optional `OPENAI_MODEL`, `OPENAI_BASE_URL`, `AI_MENTOR_DAILY_LIMIT` and `AI_MENTOR_PER_MINUTE_LIMIT` as server-side environment variables in the hosting provider. The API verifies the signed-in Firebase ID token and applies per-user daily and per-minute request caps before calling the model. Optionally configure Firebase App Check on both client and server. The mentor supports image and PDF question attachments (up to 3 files, total 3 MB) when a multimodal model/provider is configured. Do not put provider keys or service-account JSON in frontend `VITE_*` variables. Without a key, the app falls back to a local study-coach response and clearly indicates that a live model is not connected; the offline fallback cannot analyse attachments.
 
 ## Data and exam-pattern notes
 - This repository ships with a **starter curriculum and illustrative practice questions**, not a complete or officially verified PYQ database. Do not label these sample questions as official PYQs.
