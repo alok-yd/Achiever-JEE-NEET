@@ -18,7 +18,7 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
   sections:[{id:"physics",label:"Physics",questionCount:25},{id:"chemistry",label:"Chemistry",questionCount:25},{id:"mathematics",label:"Mathematics",questionCount:25}],
   dateLabel:"Session 1 dates: 20, 21, 22, 23, 24 and 28 January 2027; Session 2: 2–7 April 2027. Candidate-specific shift/date is on the admit card.",
   dateStart:"2027-01-20",dateEnd:"2027-01-28",dateList:["2027-01-20","2027-01-21","2027-01-22","2027-01-23","2027-01-24","2027-01-28"],officialSource:"https://nta.gov.in/exams/jee/",
-  notes:"NTA's current JEE Main 2027 page lists 75 compulsory questions (25 each in Physics, Chemistry and Mathematics), 3 hours, 300 marks and +4/−1/0. The page lists Session 1 exam dates as 22–30 January 2027 and Session 2 in April 2027. Candidate-specific dates vary."
+  notes:"NTA's current JEE Main 2027 page lists 75 compulsory questions (25 each in Physics, Chemistry and Mathematics), 3 hours, 300 marks and +4/−1/0. The NTA 2027 FAQ lists Session 1 dates as 20, 21, 22, 23, 24 and 28 January 2027, and Session 2 dates as 2–7 April 2027. Candidate-specific dates vary."
  },
  "jee-advanced":{
   id:"jee-advanced",name:"JEE Advanced",exam:"JEE",year:"2027",
