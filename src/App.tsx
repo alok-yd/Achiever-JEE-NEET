@@ -7,7 +7,7 @@ import {
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
 import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, SYLLABUS_STATUS, type ExamKey, type PracticeQuestion } from "./data";
-import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
+import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, hasFullMockCoverage, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
 import { firebaseAppCheck, firebaseAuth, firebaseConfigState } from "./services/firebase";
@@ -469,7 +469,7 @@ function MockTests({state,saveTest}:{state:AppState;saveTest:(t:TestRecord,attem
  const [mode,setMode]=useState<TestMode>("starter");
  const imported=state.customQuestions.filter(q=>q.examTrack===track);
  const config=EXAM_TRACKS[track];
- const fullAvailable=config.questionCount!==null&&config.answerableCount!==null&&imported.length>=config.questionCount;
+ const fullAvailable=hasFullMockCoverage(track,imported);
  const starter=SAMPLE_QUESTIONS[state.profile.exam];
  const qs=mode==="starter"?starter:imported.length?imported:starter;
  const fullQs=mode==="full"&&fullAvailable?imported.slice(0,config.questionCount||0):qs;
@@ -517,7 +517,7 @@ function MockTests({state,saveTest}:{state:AppState;saveTest:(t:TestRecord,attem
  if(!active)return <div className="page-stack"><div className="notice amber"><ShieldCheck size={17}/> A full-length simulation is enabled only when enough imported questions are available for the selected exam track. Starter questions remain clearly marked as illustrative.</div><div className="two-col"><Card className="mock-intro"><div className="mock-icon"><Timer size={32}/></div><small>EXAM-SPECIFIC TEST CONFIGURATION</small><h2>Practice & mock engine</h2>
   <label className="track-select">Examination track<select value={track} onChange={e=>{const next=e.target.value as ExamTrack;setTrack(next);setMode("starter");}}>{tracksForExam(state.profile.exam).map(t=><option key={t} value={t}>{formatExamTrack(t)}</option>)}</select></label>
   <label className="track-select">Test type<select value={mode} onChange={e=>setMode(e.target.value as TestMode)}><option value="starter">Starter practice drill ({starter.length} illustrative questions)</option><option value="custom" disabled={imported.length===0}>Imported custom question set ({imported.length} questions)</option><option value="full" disabled={!fullAvailable}>Full-length exam simulation ({config.questionCount??"variable"} questions)</option></select></label>
-  {mode==="full"&&!fullAvailable&&<p className="file-error">Import at least {config.questionCount??"the configured number of"} questions tagged for this track in the Question Bank before starting a full simulation.</p>}
+  {mode==="full"&&!fullAvailable&&<p className="file-error">Import exactly {config.questionCount??"the configured number of"} questions tagged for this track, with the configured subject counts, in the Question Bank before starting a full simulation.</p>}
   <p>{mode==="full"?"This imported set will use the configured official duration, answer limit and marking scheme.":mode==="custom"?"This test uses the imported question records for the selected track.":"The short starter drill uses illustrative questions and a 20-minute timer."}</p>
   <div className="mock-specs"><div><b>{mode==="full"?durationMinutes+" min":durationMinutes+" min"}</b><small>Test timer</small></div><div><b>{questions.length}</b><small>Questions</small></div><div><b>{mode==="full"&&config.totalMarks!==null?config.totalMarks:config.correctMarks===null?"Raw correct":questions.length*(config.correctMarks||0)}</b><small>Max score / reference</small></div></div>
   {mode==="full"&&<div className="metric"><span>Maximum answerable</span><b>{answerLimit} of {questions.length}</b></div>}
