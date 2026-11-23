@@ -10,7 +10,8 @@ import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_Q
 import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
-import { firebaseAuth, firebaseConfigState } from "./services/firebase";
+import { firebaseAppCheck, firebaseAuth, firebaseConfigState } from "./services/firebase";
+import { getToken as getAppCheckToken } from "firebase/app-check";
 import { createCloudAccount, signInToCloudAccount, signOutCloudAccount, subscribeToCloudUser } from "./services/firebase-auth";
 import { loadWorkspaceFromCloud, saveWorkspaceToCloud } from "./services/cloud-workspace";
 import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
@@ -182,7 +183,8 @@ export default function App() {
   try{
    const attachments=await Promise.all(files.map(async x=>({name:x.file.name,mimeType:x.file.type,dataUrl:await fileToDataUrl(x.file)})));
    const token=await firebaseAuth?.currentUser?.getIdToken();
-   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;
+   const appCheckToken=firebaseAppCheck?await getAppCheckToken(firebaseAppCheck).then(x=>x.token).catch(()=>""):"";
+   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;if(appCheckToken)headers["X-Firebase-AppCheck"]=appCheckToken;
    const r=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message:prompt,context:coachContext(),attachments})});
    const d=await r.json();
    const fallback=localCoach(prompt)+(files.length?"\n\nThe selected attachment could not be analysed because live AI is not configured. Configure the server-side AI provider to enable image and PDF question solving.":"");
@@ -193,7 +195,8 @@ export default function App() {
  const askJarvis=async(message:string)=>{
   try{
    const token=await firebaseAuth?.currentUser?.getIdToken();
-   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;
+   const appCheckToken=firebaseAppCheck?await getAppCheckToken(firebaseAppCheck).then(x=>x.token).catch(()=>""):"";
+   const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;if(appCheckToken)headers["X-Firebase-AppCheck"]=appCheckToken;
    const response=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message,context:coachContext()})});
    const data=await response.json();
    if(response.ok&&data.reply)return String(data.reply);
