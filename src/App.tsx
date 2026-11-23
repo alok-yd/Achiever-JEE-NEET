@@ -3,7 +3,7 @@ import {
  Activity, ArrowRight, BarChart3, BookOpen, Brain, CalendarDays, Check, CheckCircle2,
  ChevronDown, ChevronRight, Clock3, Download, Eye, FileText, Flame, GraduationCap,
  Heart, HeartPulse, LayoutDashboard, Lightbulb, ListChecks, Menu, Mic, Pause, Play,
- Plus, Paperclip, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target,
+ Plus, Paperclip, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target, Upload,
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
 import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
