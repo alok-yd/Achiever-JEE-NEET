@@ -7,7 +7,10 @@ import {
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
 import { CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
-import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
+import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
+import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
+import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
+import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
 
 type PageKey = typeof PAGE_ITEMS[number][1];
 type FocusMode = "Lecture" | "Practice" | "Revision" | "Reading" | "Mock test";
@@ -16,14 +19,15 @@ type ChatAttachment = { name:string; mimeType:string; previewUrl?:string };
 type ChatMessage = { role:"assistant"|"user"; text:string; attachments?:ChatAttachment[] };
 type PendingChatFile = { file:File; previewUrl?:string };
 const FOCUS_KEY = "achiever-focus-session-v1";
-const today = () => new Date().toISOString().slice(0,10);
-const tomorrow = () => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
+const today = () => {const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate()+1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const fmt = (n:number) => { const h=Math.floor(n/3600), m=Math.floor(n%3600/60), s=Math.floor(n%60); return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0"); };
 const dateLabel = (v:string) => new Date(v+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
 const fileToDataUrl = (file:File) => new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==="string"?resolve(reader.result):reject(new Error("Could not read file"));reader.onerror=()=>reject(new Error("Could not read file"));reader.readAsDataURL(file);});
 const getFocus = ():FocusData => { try { const v=JSON.parse(localStorage.getItem(FOCUS_KEY)||"null"); if(!v) return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; const recoveredElapsed=Number(v.elapsed||0)+(v.running&&v.startedAt?Math.max(0,Math.floor((Date.now()-v.startedAt)/1000)):0); return {...v,elapsed:recoveredElapsed,running:false,startedAt:null}; } catch { return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; } };
 const pageInfo:Record<PageKey,{title:string;sub:string}> = {
  dashboard:{title:"Dashboard",sub:"Your preparation, progress and next steps — all in one place."},
+ planner:{title:"Study Planner",sub:"Turn preparation goals into scheduled daily actions and measurable follow-through."},
  roadmap:{title:"Roadmap",sub:"Turn the syllabus into clear, measurable chapter milestones."},
  focus:{title:"AI Focus",sub:"Build consistency with focused study sessions and a reliable timer."},
  lectures:{title:"Lecture Tracker",sub:"Track lectures, learning time and chapter coverage."},
@@ -67,6 +71,7 @@ export default function App() {
  const [messages,setMessages] = useState<ChatMessage[]>([{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
  const subjects = CURRICULA[state.profile.exam];
  const stats = useMemo(()=>subjectStats(state),[state]);
+ const analytics30 = useMemo(()=>buildAnalytics(state,30),[state]);
  const chapterTotal = stats.reduce((n,x)=>n+x.total,0);
  const chapterDone = stats.reduce((n,x)=>n+x.complete,0);
  const syllabusPct = chapterTotal ? Math.round(chapterDone/chapterTotal*100) : 0;
@@ -74,7 +79,7 @@ export default function App() {
  const accuracy = recorded.length ? Math.round(recorded.filter(x=>x.result==="correct").length/recorded.length*100) : 0;
  const studyMinutes = totalStudyMinutes(state);
  const completedLectures = state.lectures.filter(x=>x.completed).length;
- const weakest = stats.slice().sort((a,b)=>a.accuracy-b.accuracy || a.progress-b.progress)[0];
+ const weakest = analytics30.weakest;
  const update = (fn:(s:AppState)=>AppState) => setState(s=>fn(s));
  const notify = (text:string) => setToast(text);
  useEffect(()=>saveState(state),[state]);
@@ -87,35 +92,66 @@ export default function App() {
  },[focus]);
  useEffect(()=>{ if(!toast)return; const t=window.setTimeout(()=>setToast(""),2800); return ()=>window.clearTimeout(t); },[toast]);
  const navigate=(p:PageKey)=>{setPage(p);setMobileNav(false);window.scrollTo({top:0,behavior:"smooth"});};
- const markChapter=(subjectId:string,chapter:string)=>update(s=>{const key=subjectId+"::"+chapter;return {...s,completedChapters:s.completedChapters.includes(key)?s.completedChapters.filter(x=>x!==key):s.completedChapters.concat(key)};});
+ const markChapter=(subjectId:string,chapter:string)=>update(s=>{
+  const key=subjectId+"::"+chapter;const completing=!s.completedChapters.includes(key);
+  const completedChapters=completing?s.completedChapters.concat(key):s.completedChapters.filter(x=>x!==key);
+  const existingOpen=s.revisions.some(x=>x.subjectId===subjectId&&x.chapter===chapter&&!x.done);
+  const revisions=completing&&!existingOpen?[...scheduleChapterRevision(subjectId,chapter),...s.revisions]:s.revisions;
+  const event=eventRecord("chapter_completed",(completing?"Marked complete: ":"Reopened: ")+chapter,{subjectId,chapter});
+  return {...s,completedChapters,revisions,events:[event,...s.events]};
+ });
  const recordAttempt=(q:PracticeQuestion,result:"correct"|"incorrect",elapsed=45)=>update(s=>{
-  const a:Attempt={id:uid(),questionId:q.id,subjectId:q.subjectId,chapter:q.chapter,result,difficulty:q.difficulty,seconds:elapsed,date:today(),mistake:result==="incorrect"?"Review the concept and solution":undefined};
-  const revisions=result==="incorrect"?[{id:uid(),title:"Re-attempt: "+q.chapter,subjectId:q.subjectId,chapter:q.chapter,dueDate:tomorrow(),done:false,source:"mistake" as const},...s.revisions]:s.revisions;
-  return addStudyDay({...s,attempts:[a,...s.attempts],revisions});
+  const a:Attempt={id:uid(),questionId:q.id,subjectId:q.subjectId,chapter:q.chapter,result,difficulty:q.difficulty,seconds:elapsed,date:today(),
+   mistake:result==="incorrect"?"Review the concept and solution":undefined,mistakeCategory:result==="incorrect"?"Unclassified":undefined,
+   attemptType:q.sourceType==="verified-pyq"?"PYQ":"Practice",examTrack:s.profile.examTrack,examYear:q.year,sourceLabel:q.sourceLabel||"Illustrative practice"};
+  return addStudyDay(markAttemptWithRevision(s,a));
  });
  const recordManualAttempt=(v:Omit<Attempt,"id"|"date">)=>update(s=>{
-  const a:Attempt={...v,id:uid(),date:today()};
-  const revisions=a.result==="incorrect"?[{id:uid(),title:"Review: "+a.chapter,subjectId:a.subjectId,chapter:a.chapter,dueDate:tomorrow(),done:false,source:"mistake" as const},...s.revisions]:s.revisions;
-  return addStudyDay({...s,attempts:[a,...s.attempts],revisions});
+  const a:Attempt={...v,id:uid(),date:today(),examTrack:v.examTrack||s.profile.examTrack};
+  return addStudyDay(markAttemptWithRevision(s,a));
  });
- const addLecture=(v:Omit<Lecture,"id"|"date">)=>update(s=>({...s,lectures:[{...v,id:uid(),date:today()},...s.lectures]}));
- const toggleLecture=(id:string)=>update(s=>({...s,lectures:s.lectures.map(x=>x.id===id?{...x,completed:!x.completed}:x)}));
+ const addLecture=(v:Omit<Lecture,"id"|"date">)=>update(s=>{
+  const lecture={...v,id:uid(),date:today()};
+  return {...s,lectures:[lecture,...s.lectures],events:[eventRecord("lecture_added","Added lecture: "+lecture.title,{subjectId:lecture.subjectId,chapter:lecture.chapter,refId:lecture.id}),...s.events]};
+ });
+ const toggleLecture=(id:string)=>update(s=>{
+  const lectures=s.lectures.map(x=>x.id===id?{...x,completed:!x.completed}:x);
+  const lecture=lectures.find(x=>x.id===id);
+  const events=lecture?.completed?[eventRecord("lecture_completed","Completed lecture: "+lecture.title,{subjectId:lecture.subjectId,chapter:lecture.chapter,refId:id}),...s.events]:s.events;
+  return {...s,lectures,events};
+ });
  const addRevision=(v:{title:string;subjectId:string;chapter:string;dueDate:string})=>update(s=>({...s,revisions:[{...v,id:uid(),done:false,source:"manual"},...s.revisions]}));
  const saveNote=(v:Omit<Note,"id"|"updatedAt">,id?:string)=>update(s=>({...s,notes:id?s.notes.map(n=>n.id===id?{...n,...v,updatedAt:new Date().toISOString()}:n):[{...v,id:uid(),updatedAt:new Date().toISOString()},...s.notes]}));
+ const addDailyTask=(v:Omit<DailyTask,"id"|"done"|"source">)=>update(s=>({...s,dailyTasks:[{...v,id:uid(),done:false,source:"manual"},...s.dailyTasks]}));
+ const toggleDailyTask=(id:string)=>update(s=>({...s,dailyTasks:s.dailyTasks.map(x=>x.id===id?{...x,done:!x.done}:x)}));
+ const addFlashcard=(v:Omit<Flashcard,"id"|"createdAt">)=>update(s=>({...s,flashcards:[{...v,id:uid(),createdAt:new Date().toISOString()},...s.flashcards]}));
  const startFocus=()=>setFocus(f=>({...f,startedAt:Date.now(),running:true}));
  const pauseFocus=()=>setFocus(f=>({...f,elapsed:seconds,startedAt:null,running:false}));
  const finishFocus=()=>{
-  if(seconds>=60) update(s=>addStudyDay({...s,sessions:[{id:uid(),date:today(),minutes:Math.max(1,Math.round(seconds/60)),mode:focus.mode,subjectId:focus.subjectId},...s.sessions]}));
+  if(seconds>=60){
+   const startedAt=focus.startedAt?new Date(focus.startedAt).toISOString():undefined;
+   const session={id:uid(),date:today(),minutes:Math.max(1,Math.round(seconds/60)),mode:focus.mode,subjectId:focus.subjectId,
+    origin:"manual" as const,verificationStatus:"unverified" as const,startedAt,endedAt:new Date().toISOString()};
+   update(s=>addStudyDay({...s,sessions:[session,...s.sessions],events:[eventRecord("focus_session_saved","Saved "+focus.mode.toLowerCase()+" focus session",{subjectId:focus.subjectId,refId:session.id}),...s.events]}));
+  }
   setFocus(f=>({...f,elapsed:0,startedAt:null,running:false}));setSeconds(0);
-  notify(seconds>=60?"Focus session saved to your study records.":"Session under one minute was not added to study totals.");
+  notify(seconds>=60?"Focus session saved as manual, unverified study time.":"Session under one minute was not added to study totals.");
  };
- const coachContext=()=> "Student: "+state.profile.name+". Exam: "+state.profile.exam+". Class: "+state.profile.classLevel+". Target: "+state.profile.target+". Syllabus marked complete: "+syllabusPct+"%. Study minutes recorded: "+studyMinutes+". Practice attempts: "+state.attempts.length+". Accuracy: "+accuracy+"%. Tests: "+state.tests.length+". Subject summary: "+stats.map(x=>x.name+" "+x.progress+"% chapters, "+x.accuracy+"% accuracy").join("; ");
+ const coachContext=()=>buildStudentContext(state);
  const localCoach=(message:string)=>{
   const m=message.toLowerCase();
-  if(m.includes("today")||m.includes("plan")||m.includes("study")) return "Today's suggested plan:\n1. Spend 60–90 minutes on "+(weakest?.name||subjects[0].name)+" and complete one focused concept block.\n2. Solve 20–30 questions from a pending chapter.\n3. Review incorrect attempts and reserve 25 minutes for due revisions.\nYour current syllabus progress is "+syllabusPct+"% and recorded practice accuracy is "+accuracy+"%.";
-  if(m.includes("weak")||m.includes("improve")||m.includes("accuracy")) return state.attempts.length ? "Your current review priority from recorded data is "+weakest.name+". It has "+weakest.accuracy+"% accuracy and "+weakest.progress+"% chapter coverage. Revisit repeated errors, then retry a short timed set." : "There is not enough attempt data to identify a reliable weak subject yet. Record practice attempts across subjects first.";
-  if(m.includes("progress")||m.includes("syllabus")) return "You have marked "+chapterDone+" of "+chapterTotal+" starter syllabus chapters complete ("+syllabusPct+"%). Check the roadmap against the official "+state.profile.exam+" "+state.profile.targetYear+" syllabus before relying on it as complete.";
-  return "I can help with "+state.profile.exam+" concepts, study plans, revision and test analysis. Your workspace currently records "+state.attempts.length+" practice attempts, "+state.tests.length+" tests and "+studyMinutes+" study minutes. Connect a server-side AI provider for model-powered tutoring.";
+  if(m.includes("today")||m.includes("plan")||m.includes("study")){
+   const todays=state.dailyTasks.filter(x=>x.date===today()&&!x.done);
+   return "Today's preparation summary:\n"+(todays.length? "Your pending scheduled tasks are: "+todays.slice(0,4).map(x=>x.title).join("; ")+".":"You have not scheduled any tasks for today yet.")+
+    "\nYou have a "+state.profile.dailyHours+" hour daily target. Add a plan in Study Planner, then use AI Focus to record each study block. Current manual syllabus completion is "+syllabusPct+"%.";
+  }
+  if(m.includes("weak")||m.includes("improve")||m.includes("accuracy")){
+   return weakest?"Based on "+weakest.attempts+" counted attempts, "+weakest.name+" is currently your lowest sampled subject at "+weakest.accuracy+"% accuracy. Review its wrong answers and retry a short timed set.":"There is not enough evidence to identify a reliable weak subject. ACHIEVER waits for at least five counted attempts in a subject before highlighting it.";
+  }
+  if(m.includes("progress")||m.includes("syllabus")){
+   return "You have manually marked "+chapterDone+" of "+chapterTotal+" starter-map chapters complete ("+syllabusPct+"%). The roadmap also displays lecture, practice and revision activity separately. Confirm the chapter list against the official "+state.profile.examTrack+" syllabus.";
+  }
+  return "I can help with "+formatExamTrack(state.profile.examTrack)+" concepts, daily planning, revision and performance analysis. The workspace has "+state.attempts.length+" logged attempts, "+state.tests.length+" submitted tests and "+studyMinutes+" focus minutes. Connect an authenticated server-side AI deployment for model-powered tutoring.";
  };
  const askMentor=async(message:string,files:PendingChatFile[] = [])=>{
   if(!message.trim()&&!files.length)return;
@@ -141,18 +177,19 @@ export default function App() {
  const pageBody=()=>{
   switch(page){
    case "dashboard":return <Dashboard state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes} completedLectures={completedLectures} due={state.revisions.filter(x=>!x.done&&x.dueDate<=today()).length} go={navigate}/>;
+   case "planner":return <StudyPlanner state={state} addTask={addDailyTask} toggleTask={toggleDailyTask}/>;
    case "roadmap":return <Roadmap state={state} markChapter={markChapter} addRevision={addRevision}/>;
    case "focus":return <FocusPage state={state} focus={focus} seconds={seconds} setFocus={setFocus} start={startFocus} pause={pauseFocus} finish={finishFocus}/>;
    case "lectures":return <Lectures state={state} addLecture={addLecture} toggleLecture={toggleLecture}/>;
    case "pyq":return <PYQPage state={state} addAttempt={recordManualAttempt}/>;
    case "questions":return <QuestionBank state={state} record={recordAttempt}/>;
-   case "mocks":return <MockTests state={state} saveTest={(t)=>update(s=>addStudyDay({...s,tests:[t,...s.tests]}))}/>;
+   case "mocks":return <MockTests state={state} saveTest={(t,attempts)=>update(s=>{let next={...s,tests:[t,...s.tests]};for(const a of attempts)next=markAttemptWithRevision(next,a);return addStudyDay(next);})}/>;
    case "performance":return <Performance state={state}/>;
    case "revision":return <Revision state={state} addRevision={addRevision} update={update}/>;
-   case "notebook":return <Notebook state={state} saveNote={saveNote}/>;
+   case "notebook":return <Notebook state={state} saveNote={saveNote} addFlashcard={addFlashcard}/>;
    case "health":return <Health state={state} update={update}/>;
    case "mentor":return <Mentor messages={messages} input={mentorInput} setInput={setMentorInput} send={askMentor} busy={mentorBusy}/>;
-   case "analytics":return <Analytics state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes}/>;
+   case "analytics":return <Analytics state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes} analytics={analytics30}/>;
    case "strategy":return <Strategy state={state} stats={stats}/>;
    case "settings":return <SettingsPage state={state} update={update} notify={notify}/>;
   }
@@ -164,7 +201,7 @@ export default function App() {
    <nav className="navigation">{PAGE_ITEMS.map(([label,key])=><button key={key} className={"nav-item "+(page===key?"active":"")} onClick={()=>navigate(key)}><NavIcon name={key}/><span>{label}</span>{key==="focus"&&focus.running?<em>{fmt(seconds)}</em>:null}</button>)}</nav>
    <div className="sidebar-bottom">
     <div className="institute-mark"><div><GraduationCap size={30}/><b>{state.profile.exam==="JEE"?"IIT":"AIIMS"}</b></div></div>
-    <div className="goal-count"><div><span>{state.profile.exam==="JEE"?"JEE Main Session 1": "NEET UG"} {state.profile.targetYear}</span><Pill tone="blue">{state.profile.examDate?Math.max(0,Math.ceil((new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000))+" Days":"Date pending"}</Pill></div><Progress value={state.profile.examDate?Math.max(0,Math.min(100,100-Math.max(0,(new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000)/365*100)):0}/></div>
+    <div className="goal-count"><div><span>{state.profile.exam==="JEE"?"JEE Main Session 1": "NEET UG"} {state.profile.targetYear}</span><Pill tone="blue">{state.profile.examDate?Math.max(0,Math.ceil((new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000))+" Days":(state.profile.examTrack==="jee-advanced"?"23 May 2027":state.profile.examTrack==="jee-main"?"Jan 2027":"May 2027")}</Pill></div><Progress value={state.profile.examDate?Math.max(0,Math.min(100,100-Math.max(0,(new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000)/365*100)):0}/></div>
     <div className="target-box"><small>TARGET</small><b><Star size={16} fill="currentColor"/> {state.profile.target}</b><span>{state.profile.targetCollege}</span></div>
     <button className="profile-button" onClick={()=>navigate("settings")}><i>{state.profile.name.slice(0,1).toUpperCase()}</i><span><b>{state.profile.name}</b><small>{state.profile.exam} • {state.profile.classLevel}</small></span><Settings size={15}/></button>
    </div>
@@ -186,7 +223,7 @@ export default function App() {
 
 function NavIcon({name}:{name:string}){
  const props={size:18,strokeWidth:1.9};
- const icons:Record<string,React.ReactNode>={dashboard:<LayoutDashboard {...props}/>,roadmap:<Target {...props}/>,focus:<Eye {...props}/>,lectures:<BookOpen {...props}/>,pyq:<ListChecks {...props}/>,questions:<BookOpen {...props}/>,mocks:<Timer {...props}/>,performance:<BarChart3 {...props}/>,revision:<RefreshCw {...props}/>,notebook:<FileText {...props}/>,health:<Heart {...props}/>,mentor:<Brain {...props}/>,analytics:<TrendingUp {...props}/>,strategy:<Lightbulb {...props}/>,settings:<Settings {...props}/>};
+ const icons:Record<string,React.ReactNode>={dashboard:<LayoutDashboard {...props}/>,planner:<CalendarDays {...props}/>,roadmap:<Target {...props}/>,focus:<Eye {...props}/>,lectures:<BookOpen {...props}/>,pyq:<ListChecks {...props}/>,questions:<BookOpen {...props}/>,mocks:<Timer {...props}/>,performance:<BarChart3 {...props}/>,revision:<RefreshCw {...props}/>,notebook:<FileText {...props}/>,health:<Heart {...props}/>,mentor:<Brain {...props}/>,analytics:<TrendingUp {...props}/>,strategy:<Lightbulb {...props}/>,settings:<Settings {...props}/>};
  return <i className="nav-icon">{icons[name]}</i>;
 }
 function Onboarding({state,onDone}:{state:AppState;onDone:(p:AppState["profile"])=>void}){
