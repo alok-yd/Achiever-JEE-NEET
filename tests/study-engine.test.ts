@@ -114,6 +114,7 @@ describe("exam configuration",()=>{
   expect(hasFullMockCoverage("jee-main",[...balanced.slice(0,25),...balanced.slice(25,50),...Array(25).fill({subjectId:"physics"})])).toBe(false);
   expect(hasFullMockCoverage("jee-advanced",balanced)).toBe(false);
   expect(hasFullMockCoverage("neet-ug",balanced)).toBe(false);
+  expect(scoreForTrack("neet-ug",10,2)).toEqual({score:38,maxScore:48,scoreUnit:"marks"});
  });
  it("keeps JEE Main scoring separate from JEE Advanced variable scoring",()=>{
   expect(scoreForTrack("jee-main",10,2)).toEqual({score:38,maxScore:48,scoreUnit:"marks"});
@@ -121,10 +122,13 @@ describe("exam configuration",()=>{
   expect(EXAM_TRACKS["jee-advanced"].correctMarks).toBeNull();
  });
  it("keeps the NEET UG 2027 pattern pending until NTA publishes its bulletin",()=>{
-  expect(EXAM_TRACKS["neet-ug"].questionCount).toBeNull();
-  expect(EXAM_TRACKS["neet-ug"].answerableCount).toBeNull();
-  expect(EXAM_TRACKS["neet-ug"].durationMinutes).toBeNull();
-  expect(EXAM_TRACKS["neet-ug"].totalMarks).toBeNull();
+  expect(EXAM_TRACKS["neet-ug"].questionCount).toBe(200);
+  expect(EXAM_TRACKS["neet-ug"].answerableCount).toBe(180);
+  expect(EXAM_TRACKS["neet-ug"].durationMinutes).toBe(200);
+  expect(EXAM_TRACKS["neet-ug"].totalMarks).toBe(720);
+  expect(EXAM_TRACKS["neet-ug"].correctMarks).toBe(4);
+  expect(EXAM_TRACKS["neet-ug"].wrongMarks).toBe(-1);
   expect(EXAM_TRACKS["neet-ug"].status).toBe("pending-bulletin");
+  expect(EXAM_TRACKS["neet-ug"].sections.every(section=>section.questionCount===null)).toBe(true);
  });
 });
