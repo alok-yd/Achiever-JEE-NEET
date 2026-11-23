@@ -6,7 +6,7 @@ import {
  Plus, Paperclip, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target, Upload,
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
-import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
+import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, SYLLABUS_STATUS, type ExamKey, type PracticeQuestion } from "./data";
 import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
@@ -105,7 +105,7 @@ export default function App() {
   ...s,healthChallenges:[{...challenge,id:uid(),startDate:today(),completedDates:[],active:true},...s.healthChallenges]
  }));
  const markHealthChallengeDay=(id:string)=>update(s=>({...s,healthChallenges:s.healthChallenges.map(ch=>{
-  if(ch.id!==id||!ch.active)return ch;
+  if(ch.id!==id||(!ch.active&&!ch.completedDates.includes(today())))return ch;
   const done=ch.completedDates.includes(today());
   const completedDates=done?ch.completedDates.filter(d=>d!==today()):[...ch.completedDates,today()].sort();
   return {...ch,completedDates,active:completedDates.length<ch.days};
@@ -343,7 +343,14 @@ function Roadmap({state,markChapter,markNcertChapter,addRevision}:{state:AppStat
  const [open,setOpen]=useState(CURRICULA[state.profile.exam][0].id);
  const list=subjectStats(state);
  return <div className="page-stack"><div className="roadmap-banner"><div><small>SYLLABUS ROADMAP</small><h2>Your {formatExamTrack(state.profile.examTrack)} learning map</h2><p>Organized by subject and planning group. Chapter mastery remains student-controlled.</p></div><b>{list.reduce((n,x)=>n+x.complete,0)}<small> / {list.reduce((n,x)=>n+x.total,0)}</small><span>manual chapter completions</span>{state.profile.exam==="NEET"?<small>{state.ncertCompletedChapters.length} NCERT chapters marked read</small>:null}</b></div>
-  <div className="notice"><ShieldCheck size={17}/> This is a starter planning map, not a certified complete syllabus. Verify chapter inclusion and topic detail against the official syllabus for the selected examination year. Lecture, question and revision activity are shown separately from a manual mastery declaration.</div>
+  <div className={"notice "+(state.profile.exam==="NEET"||state.profile.examTrack==="jee-advanced"?"amber":"")}>
+   <ShieldCheck size={17}/>
+   <span><b>{state.profile.examTrack==="jee-advanced"?"JEE Main 2027 unit headings — reference only":SYLLABUS_STATUS[state.profile.exam].label}</b><br/>
+   {state.profile.examTrack==="jee-advanced"?"The official JEE Advanced 2027 syllabus page is still marked as coming soon. This page shows JEE Main unit headings as a planning reference only, not as a confirmed JEE Advanced syllabus.":SYLLABUS_STATUS[state.profile.exam].details}
+   {" "}<a href={state.profile.exam==="JEE"?"https://jeemain.nta.nic.in/document/syllabus-2027/":SYLLABUS_STATUS[state.profile.exam].source} target="_blank" rel="noreferrer">Official syllabus source</a>
+   <br/>Lecture, question and revision activity are displayed separately from manual chapter mastery.
+   </span>
+  </div>
   {list.map(s=>{
    const map=CHAPTER_GROUPS[state.profile.exam][s.id]||{};
    const groups=Array.from(new Set(s.chapters.map(ch=>map[ch]||"Other")));
@@ -596,7 +603,7 @@ function Health({state,update,addChallenge,markChallengeDay}:{state:AppState;upd
    {state.healthChallenges.length===0?<Empty title="No active challenges" detail="Start a study, revision or meditation challenge to track daily check-ins."/>:state.healthChallenges.map(ch=>{
     const todayDone=ch.completedDates.includes(today());const progress=Math.min(100,Math.round(ch.completedDates.length/ch.days*100));
     const current=currentStreak(ch.completedDates);
-    return <div className="challenge-row" key={ch.id}><div className="challenge-info"><b>{ch.title}</b><small>{ch.days}-day goal • {ch.goal} • {ch.completedDates.length}/{ch.days} check-ins • {current}-day current streak</small><Progress value={progress} color="#17a77d"/></div><Pill tone={ch.active?"blue":"green"}>{ch.active?"In progress":"Completed"}</Pill><Button className="challenge-check" variant={todayDone?"secondary":"primary"} disabled={!ch.active} onClick={()=>markChallengeDay(ch.id)}>{todayDone?"Checked in today":"Mark today"}</Button></div>;
+    return <div className="challenge-row" key={ch.id}><div className="challenge-info"><b>{ch.title}</b><small>{ch.days}-day goal • {ch.goal} • {ch.completedDates.length}/{ch.days} check-ins • {current}-day current streak</small><Progress value={progress} color="#17a77d"/></div><Pill tone={ch.active?"blue":"green"}>{ch.active?"In progress":"Completed"}</Pill><Button className="challenge-check" variant={todayDone?"secondary":"primary"} disabled={!ch.active&&!todayDone} onClick={()=>markChallengeDay(ch.id)}>{todayDone?"Checked in today":"Mark today"}</Button></div>;
    })}
    <p className="disclaimer">Challenge check-ins are self-reported and are not automatically inferred from timer, camera or health data. A check-in can be removed by clicking it again on the same day.</p>
   </Card>
@@ -616,7 +623,7 @@ function Mentor({messages,input,setInput,send,busy}:{messages:ChatMessage[];inpu
   if(!list)return;
   setFileError("");
   const incoming=Array.from(list);
-  const allowed=incoming.filter(f=>f.type.startsWith("image/")||f.type==="application/pdf");
+  const allowed=incoming.filter(f=>["image/jpeg","image/png","image/webp","image/gif","application/pdf"].includes(f.type));
   if(allowed.length!==incoming.length)setFileError("Only image files and PDF documents are supported.");
   const room=3-files.length;
   const chosen=allowed.slice(0,Math.max(0,room));
@@ -644,7 +651,7 @@ function Mentor({messages,input,setInput,send,busy}:{messages:ChatMessage[];inpu
   <form className="chat-composer" onSubmit={submit}>
    {files.length>0&&<div className="pending-files">{files.map((f,i)=><div className="pending-file" key={i}>{f.previewUrl?<img src={f.previewUrl} alt={f.file.name}/>:<FileText size={17}/>}<span>{f.file.name}</span><button type="button" onClick={()=>removeFile(i)} aria-label={"Remove "+f.file.name}><X size={14}/></button></div>)}</div>}
    {fileError&&<div className="file-error">{fileError}</div>}
-   <div className="composer-row"><input ref={inputRef} type="file" hidden multiple accept="image/*,application/pdf" onChange={e=>addFiles(e.target.files)}/><button type="button" className="attach-button" title="Attach question image or PDF" onClick={()=>inputRef.current?.click()} disabled={busy}><Paperclip size={18}/><span>Attach image / PDF</span></button><textarea rows={2} value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask a doubt or attach a question image / PDF..."/><Button type="submit" disabled={busy||(!input.trim()&&!files.length)}><Send size={16}/> Send</Button></div>
+   <div className="composer-row"><input ref={inputRef} type="file" hidden multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={e=>addFiles(e.target.files)}/><button type="button" className="attach-button" title="Attach question image or PDF" onClick={()=>inputRef.current?.click()} disabled={busy}><Paperclip size={18}/><span>Attach image / PDF</span></button><textarea rows={2} value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask a doubt or attach a question image / PDF..."/><Button type="submit" disabled={busy||(!input.trim()&&!files.length)}><Send size={16}/> Send</Button></div>
   </form>
   <small className="disclaimer">Images and PDFs are sent only when you press Send. Live attachment analysis requires the server-side AI provider; without it, the local coach cannot read files.</small>
  </Card><Card><small>TRY ASKING</small><h3>Study prompts</h3>{["Make my study plan for today","Which subject needs more attention?","How can I improve question accuracy?","Explain a concept step by step"].map(x=><button className="prompt" key={x} onClick={()=>send(x,[])}>{x}<ArrowRight size={13}/></button>)}<p className="disclaimer">The mentor uses your selected examination and locally recorded preparation data.</p></Card></div>;
