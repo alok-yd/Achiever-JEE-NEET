@@ -6,7 +6,7 @@ export type PracticeQuestion = {
  answer: number; explanation: string; kind: "MCQ"|"Numerical";
  sourceType?: "illustrative"|"verified-pyq"|"custom";
  examTrack?: "jee-main"|"jee-advanced"|"neet-ug";
- topic?: string; sourceLabel?: string;
+ topic?: string; sourceLabel?: string; examSession?:string; shift?:string; paper?:string; sourceUrl?:string; verifiedAt?:string;
 };
 export const CURRICULA: Record<ExamKey, Subject[]> = {
  JEE: [
