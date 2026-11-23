@@ -72,7 +72,7 @@ export default function App() {
  const [jarvis,setJarvis] = useState(false);
  const [mentorInput,setMentorInput] = useState("");
  const [mentorBusy,setMentorBusy] = useState(false);
- const [messages,setMessages] = useState<ChatMessage[]>(()=>state.aiMessages.length?state.aiMessages.map(m=>({role:m.role,text:m.text})): [{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
+ const [messages,setMessages] = useState<ChatMessage[]>(()=>state.aiMessages.filter(m=>m.channel==="mentor").slice(-80).map(m=>({role:m.role,text:m.text})).length?state.aiMessages.filter(m=>m.channel==="mentor").slice(-80).map(m=>({role:m.role,text:m.text})): [{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
  const subjects = CURRICULA[state.profile.exam];
  const stats = useMemo(()=>subjectStats(state),[state]);
  const analytics30 = useMemo(()=>buildAnalytics(state,30),[state]);
@@ -173,7 +173,7 @@ export default function App() {
   setFocus(f=>({...f,elapsed:0,startedAt:null,running:false}));setSeconds(0);
   notify(seconds>=60?"Focus session saved as manual, unverified study time.":"Session under one minute was not added to study totals.");
  };
- const coachContext=()=>buildStudentContext(state);
+ const coachContext=(query="")=>buildStudentContext(state,query);
  const localCoach=(message:string)=>{
   const m=message.toLowerCase();
   if(m.includes("today")||m.includes("plan")||m.includes("study")){
