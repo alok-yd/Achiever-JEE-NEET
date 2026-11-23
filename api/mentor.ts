@@ -16,7 +16,8 @@ let adminDb:ReturnType<typeof getFirestore>|null=null;
 function getAdmin(){
  if(adminAuth&&adminDb)return {auth:adminAuth,db:adminDb};
  const encoded=process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
- const credential=encoded?cert(JSON.parse(encoded)):applicationDefault();
+ if(!encoded)throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_JSON");
+ const credential=cert(JSON.parse(encoded));
  const app=getApps()[0]||initializeApp({credential});
  adminAuth=getAuth(app);adminDb=getFirestore(app);
  return {auth:adminAuth,db:adminDb};
@@ -32,18 +33,24 @@ function indiaDate(){
 }
 async function consumeQuota(db:ReturnType<typeof getFirestore>,uid:string){
  const date=indiaDate();
- const dailyLimit=Math.max(1,Math.min(200,Number(process.env.AI_MENTOR_DAILY_LIMIT||60)));
- const minuteLimit=Math.max(1,Math.min(20,Number(process.env.AI_MENTOR_PER_MINUTE_LIMIT||5)));
+ const readLimit=(value:string|undefined,fallback:number,max:number)=>{
+  const parsed=Number(value);
+  return Number.isFinite(parsed)?Math.max(1,Math.min(max,Math.floor(parsed))):fallback;
+ };
+ const dailyLimit=readLimit(process.env.AI_MENTOR_DAILY_LIMIT,60,200);
+ const minuteLimit=readLimit(process.env.AI_MENTOR_PER_MINUTE_LIMIT,5,20);
  const minuteKey=Math.floor(Date.now()/60000);
- const dailyRef=db.doc("users/"+uid+"/usage/ai-mentor-"+date);
- const minuteRef=db.doc("users/"+uid+"/usage/ai-mentor-minute-"+minuteKey);
+ const dailyRef=db.doc("users/"+uid+"/usage/ai-mentor-daily");
+ const minuteRef=db.doc("users/"+uid+"/usage/ai-mentor-minute");
  return db.runTransaction(async tx=>{
   const [dailySnap,minuteSnap]=await Promise.all([tx.get(dailyRef),tx.get(minuteRef)]);
-  const dailyCount=Number(dailySnap.data()?.count||0);
-  const minuteCount=Number(minuteSnap.data()?.count||0);
+  const dailyData=dailySnap.data();
+  const minuteData=minuteSnap.data();
+  const dailyCount=dailyData?.date===date?Number(dailyData.count||0):0;
+  const minuteCount=minuteData?.minuteKey===minuteKey?Number(minuteData.count||0):0;
   if(dailyCount>=dailyLimit||minuteCount>=minuteLimit)return {allowed:false,dailyRemaining:Math.max(0,dailyLimit-dailyCount),retryAfterSeconds:60-(Math.floor(Date.now()/1000)%60)};
-  tx.set(dailyRef,{count:dailyCount+1,updatedAt:FieldValue.serverTimestamp()},{merge:true});
-  tx.set(minuteRef,{count:minuteCount+1,updatedAt:FieldValue.serverTimestamp(),expiresAt:new Date(Date.now()+2*60*1000)},{merge:true});
+  tx.set(dailyRef,{date,count:dailyCount+1,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+  tx.set(minuteRef,{minuteKey,count:minuteCount+1,updatedAt:FieldValue.serverTimestamp()},{merge:true});
   return {allowed:true,dailyRemaining:dailyLimit-dailyCount-1,retryAfterSeconds:0};
  });
 }
