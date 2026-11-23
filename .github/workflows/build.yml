@@ -20,3 +20,11 @@ jobs:
         run: npm install
       - name: Type-check and create production bundle
         run: npm run build
+
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: achiever-jee-neet-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
