@@ -152,7 +152,7 @@ export default function App() {
  const completeOnboarding=(profile:AppState["profile"])=>{update(s=>({...s,profile}));localStorage.setItem("achiever-onboarded","yes");setOnboarding(false);notify("Your ACHIEVER workspace is ready.");};
  return <div className="app-shell">
   <aside className={"sidebar "+(mobileNav?"open":"")}>
-   <div className="brand"><img src="/achiever-logo.svg" alt="ACHIEVER — AI Learning & Intelligence"/><button className="mobile-close" onClick={()=>setMobileNav(false)}><X size={18}/></button></div>
+   <div className="brand"><img src="./achiever-logo.svg" alt="ACHIEVER — AI Learning & Intelligence"/><button className="mobile-close" onClick={()=>setMobileNav(false)}><X size={18}/></button></div>
    <nav className="navigation">{PAGE_ITEMS.map(([label,key])=><button key={key} className={"nav-item "+(page===key?"active":"")} onClick={()=>navigate(key)}><NavIcon name={key}/><span>{label}</span>{key==="focus"&&focus.running?<em>{fmt(seconds)}</em>:null}</button>)}</nav>
    <div className="sidebar-bottom">
     <div className="institute-mark"><div><GraduationCap size={30}/><b>{state.profile.exam==="JEE"?"IIT":"AIIMS"}</b></div></div>
@@ -163,7 +163,7 @@ export default function App() {
   </aside>
   <div className={"mobile-scrim "+(mobileNav?"visible":"")} onClick={()=>setMobileNav(false)}/>
   <main className="main-panel">
-   <header className="mobile-header"><button onClick={()=>setMobileNav(true)}><Menu/></button><img src="/achiever-logo.svg" alt="ACHIEVER"/><span>{state.profile.exam}</span></header>
+   <header className="mobile-header"><button onClick={()=>setMobileNav(true)}><Menu/></button><img src="./achiever-logo.svg" alt="ACHIEVER"/><span>{state.profile.exam}</span></header>
    <div className="page-scroll"><div className="page-container">
     <div className="page-heading"><div><h1>{pageInfo[page].title}</h1><p>{pageInfo[page].sub}</p></div><div className="heading-actions"><Pill tone="green"><i className="live-dot"/> {state.profile.exam} {state.profile.targetYear}</Pill><button className="icon-button" title="Open AI Mentor" onClick={()=>navigate("mentor")}><Brain size={18}/></button></div></div>
     {pageBody()}
@@ -187,7 +187,7 @@ function Onboarding({state,onDone}:{state:AppState;onDone:(p:AppState["profile"]
  const [level,setLevel]=useState(state.profile.classLevel);
  const [target,setTarget]=useState(state.profile.target);
  const [hours,setHours]=useState(state.profile.dailyHours);
- return <div className="modal-backdrop"><div className="modal onboarding"><img src="/achiever-logo.svg" alt="ACHIEVER"/><Pill tone="blue">PERSONALIZE YOUR PREPARATION</Pill><h2>Welcome to ACHIEVER</h2><p>Set up your student workspace. You can change these details anytime.</p>
+ return <div className="modal-backdrop"><div className="modal onboarding"><img src="./achiever-logo.svg" alt="ACHIEVER"/><Pill tone="blue">PERSONALIZE YOUR PREPARATION</Pill><h2>Welcome to ACHIEVER</h2><p>Set up your student workspace. You can change these details anytime.</p>
   <label>Student name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Enter your name"/></label>
   <label>Target examination<select value={exam} onChange={e=>setExam(e.target.value as ExamKey)}><option value="JEE">JEE Main + Advanced</option><option value="NEET">NEET UG</option></select></label>
   <div className="form-grid"><label>Current class<select value={level} onChange={e=>setLevel(e.target.value)}><option>Class 11</option><option>Class 12</option><option>Dropper</option><option>Other</option></select></label><label>Daily study target<select value={hours} onChange={e=>setHours(Number(e.target.value))}>{[4,5,6,7,8,9,10,11,12].map(x=><option key={x} value={x}>{x} hours</option>)}</select></label></div>
