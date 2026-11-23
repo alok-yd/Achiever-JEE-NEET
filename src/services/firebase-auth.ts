@@ -2,6 +2,7 @@ import {
  createUserWithEmailAndPassword,
  onAuthStateChanged,
  signInWithEmailAndPassword,
+ sendPasswordResetEmail,
  signOut,
  updateProfile,
  type User
@@ -18,4 +19,5 @@ export async function createCloudAccount(name:string,email:string,password:strin
 export async function signInToCloudAccount(email:string,password:string){
  return (await signInWithEmailAndPassword(requireAuth(),email.trim(),password)).user;
 }
+export async function resetCloudPassword(email:string){await sendPasswordResetEmail(requireAuth(),email.trim());}
 export async function signOutCloudAccount(){await signOut(requireAuth());}
