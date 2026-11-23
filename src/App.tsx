@@ -156,8 +156,9 @@ export default function App() {
    const raw=JSON.parse(await file.text());const rows=Array.isArray(raw)?raw:raw.questions;
    if(!Array.isArray(rows))throw new Error("Expected a JSON array or an object with a questions array.");
    const allowedSubjects=CURRICULA[state.profile.exam].map(x=>x.id);
+   const allowedTracks=tracksForExam(state.profile.exam);
    const valid:PracticeQuestion[]=rows.filter((q:any)=>q&&typeof q.prompt==="string"&&typeof q.chapter==="string"&&allowedSubjects.includes(q.subjectId)&&(q.kind==="Numerical"?Number.isFinite(Number(q.answer)):Array.isArray(q.options)&&q.options.length>=2&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<q.options.length))
-    .map((q:any,i:number)=>({...q,id:String(q.id||"import-"+uid()+"-"+i),year:String(q.year||state.profile.targetYear),difficulty:["Easy","Moderate","Hard"].includes(q.difficulty)?q.difficulty:"Moderate",kind:q.kind==="Numerical"?"Numerical":"MCQ",sourceType:"custom" as const,examTrack:state.profile.examTrack,sourceLabel:String(q.sourceLabel||q.source||"Student import — source not independently verified")}));
+    .map((q:any,i:number)=>({...q,id:String(q.id||"import-"+uid()+"-"+i),year:String(q.year||state.profile.targetYear),difficulty:["Easy","Moderate","Hard"].includes(q.difficulty)?q.difficulty:"Moderate",kind:q.kind==="Numerical"?"Numerical":"MCQ",sourceType:"custom" as const,examTrack:allowedTracks.includes(q.examTrack)?q.examTrack:state.profile.examTrack,sourceLabel:String(q.sourceLabel||q.source||"Student import — source not independently verified")}));
    if(!valid.length)throw new Error("No valid questions found. Check subjectId, chapter, prompt, options and answer fields.");
    update(s=>({...s,customQuestions:[...valid,...s.customQuestions]}));notify(valid.length+" custom questions imported. Their sources remain student-labelled and unverified.");
   }catch(e){notify(e instanceof Error?"Import failed: "+e.message:"Question import failed.");}
