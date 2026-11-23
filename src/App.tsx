@@ -6,7 +6,7 @@ import {
  Plus, Paperclip, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Star, Target,
  Timer, Trash2, TrendingUp, Trophy, Volume2, X
 } from "lucide-react";
-import { CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
+import { CHAPTER_GROUPS, CURRICULA, EXAM_DATES, EXAM_RULES, PAGE_ITEMS, SAMPLE_QUESTIONS, type ExamKey, type PracticeQuestion } from "./data";
 import { DEFAULT_TRACK, EXAM_TRACKS, formatExamTrack, tracksForExam, type ExamTrack } from "./exam-config";
 import { buildAnalytics, buildStudentContext } from "./services/analytics-engine";
 import { chapterActivity, createMistakeRevision, eventRecord, markAttemptWithRevision, scheduleChapterRevision } from "./services/study-engine";
@@ -278,6 +278,25 @@ function Dashboard({state,stats,syllabusPct,accuracy,studyMinutes,completedLectu
    <Card><div className="card-head"><div><small>SUBJECT COVERAGE</small><h3>Chapter progress</h3></div><button className="text-link" onClick={()=>go("roadmap")}>View all</button></div>{stats.map(s=><div className="subject-progress" key={s.id}><div><i style={{background:s.color}}/><b>{s.name}</b><span>{s.progress}%</span></div><Progress value={s.progress} color={s.color}/></div>)}</Card></div>
   <Card><div className="card-head"><div><small>QUICK ACCESS</small><h3>Keep your preparation moving</h3></div></div><div className="quick-grid">{[{t:"Practise questions",d:"Chapter-wise question practice",i:BookOpen,p:"questions" as PageKey},{t:"Attempt a mock",d:"Try a timed practice set",i:Timer,p:"mocks" as PageKey},{t:"Revise mistakes",d:"Review incorrect questions",i:RefreshCw,p:"revision" as PageKey},{t:"Ask AI Mentor",d:"Get concept and preparation guidance",i:Brain,p:"mentor" as PageKey}].map(x=><button className="quick-card" key={x.t} onClick={()=>go(x.p)}><i><x.i size={18}/></i><b>{x.t}</b><small>{x.d}</small><ArrowRight size={15}/></button>)}</div></Card>
   <small className="disclaimer">Syllabus and practice content are a starter framework. Confirm exam coverage against the latest official documents. Analytics are based on records saved in this workspace.</small>
+ </div>;
+}
+
+function Roadmap({state,markChapter,addRevision}:{state:AppState;markChapter:(s:string,c:string)=>void;addRevision:(v:{title:string;subjectId:string;chapter:string;dueDate:string})=>void}){
+ const [open,setOpen]=useState(CURRICULA[state.profile.exam][0].id);
+ const list=subjectStats(state);
+ return <div className="page-stack"><div className="roadmap-banner"><div><small>SYLLABUS ROADMAP</small><h2>Your {formatExamTrack(state.profile.examTrack)} learning map</h2><p>Organized by subject and planning group. Chapter mastery remains student-controlled.</p></div><b>{list.reduce((n,x)=>n+x.complete,0)}<small> / {list.reduce((n,x)=>n+x.total,0)}</small><span>manual chapter completions</span></b></div>
+  <div className="notice"><ShieldCheck size={17}/> This is a starter planning map, not a certified complete syllabus. Verify chapter inclusion and topic detail against the official syllabus for the selected examination year. Lecture, question and revision activity are shown separately from a manual mastery declaration.</div>
+  {list.map(s=>{
+   const map=CHAPTER_GROUPS[state.profile.exam][s.id]||{};
+   const groups=Array.from(new Set(s.chapters.map(ch=>map[ch]||"Other")));
+   return <Card className="subject-card" key={s.id}>
+    <button className="subject-toggle" onClick={()=>setOpen(open===s.id?"":s.id)}><i style={{background:s.color+"19",color:s.color}}><BookOpen size={19}/></i><span><b>{s.name}</b><small>{s.complete} of {s.total} manually completed • {s.lectureCount} lectures • {s.attempts} counted attempts</small><Progress value={s.progress} color={s.color}/></span><strong>{s.progress}%</strong>{open===s.id?<ChevronDown size={18}/>:<ChevronRight size={18}/>}</button>
+    {open===s.id&&<div className="chapters">{groups.map(group=><div className="roadmap-group" key={group}><h4>{group}</h4>{s.chapters.filter(ch=>(map[ch]||"Other")===group).map((chapter,i)=>{
+     const activity=chapterActivity(state,s.id,chapter);
+     return <div className="chapter roadmap-chapter" key={chapter}><small>{String(i+1).padStart(2,"0")}</small><span><b className={activity.manuallyComplete?"done":""}>{chapter}</b><em>{activity.manuallyComplete?"Mastery marked complete":activity.activityPct+"% activity signal • not marked complete"}</em><div className="chapter-metrics"><Pill>{activity.lectures} lectures</Pill><Pill>{activity.attempts} attempts</Pill><Pill tone={activity.attempts&&activity.accuracy>=70?"green":"slate"}>{activity.attempts?activity.accuracy+"% accuracy":"No accuracy yet"}</Pill><Pill>{activity.revisionsDone}/{activity.revisions} revisions</Pill></div></span><button className={"check-button "+(activity.manuallyComplete?"checked":"")} title="Toggle manual mastery status" onClick={()=>markChapter(s.id,chapter)}>{activity.manuallyComplete?<Check size={15}/>:null}</button><button className="mini-button" title="Schedule spaced revision plan" onClick={()=>addRevision({title:"Revise "+chapter,subjectId:s.id,chapter,dueDate:today()})}><RefreshCw size={14}/></button></div>;
+    })}</div>)}</div>}
+   </Card>;
+  })}
  </div>;
 }
 
