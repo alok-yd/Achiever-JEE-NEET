@@ -33,7 +33,7 @@ npx firebase-tools use --add
 npx firebase-tools deploy --only firestore:rules,storage
 ```
 
-Select the new JEE/NEET Firebase project. The included `firestore.rules` and `storage.rules` restrict all user workspace data to the authenticated owner UID.
+Select the new JEE/NEET Firebase project. The included `firestore.rules` and `storage.rules` restrict student workspace records to the authenticated owner UID. The `users/{uid}/usage/*` quota counters are explicitly server-only and cannot be edited by the client SDK.
 
 ## 3. Configure App Check (recommended)
 
@@ -73,6 +73,6 @@ The Firestore layout is `users/{uid}/workspace/meta` plus per-record subcollecti
 - Test two different accounts and confirm neither can read the other's records or files.
 - Test push, restore, backup and restore after clearing the browser.
 - Test access from both production and preview domains.
-- Deploy and verify Firestore and Storage rules.
+- Deploy and verify Firestore and Storage rules; confirm a client cannot read/write `users/{uid}/usage/*` quota counters.
 - Test AI Mentor with valid, expired and missing Firebase ID tokens, App Check tokens if enforced, daily quota exhaustion and oversized attachments.
 - Configure API rate limiting, billing alerts and usage monitoring.
