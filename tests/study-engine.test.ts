@@ -3,7 +3,7 @@ import {defaultState,subjectStats,type Attempt} from "../src/store";
 import {buildAnalytics,buildStudentContext} from "../src/services/analytics-engine";
 import {createMistakeRevision,markAttemptWithRevision,scheduleChapterRevision} from "../src/services/study-engine";
 import {EXAM_TRACKS,hasFullMockCoverage,scoreForTrack} from "../src/exam-config";
-import {CHAPTER_GROUPS,CURRICULA} from "../src/data";
+import {CHAPTER_GROUPS,CURRICULA,SAMPLE_QUESTIONS} from "../src/data";
 import {mapLegacyJeeChapter} from "../src/store";
 
 const localDate=(offset=0)=>{
@@ -93,7 +93,6 @@ describe("syllabus migration and coverage",()=>{
   }
  });
  it("keeps sample questions mapped to an existing planning unit",()=>{
-  const {SAMPLE_QUESTIONS}=require("../src/data") as typeof import("../src/data");
   for(const exam of ["JEE","NEET"] as const){
    for(const question of SAMPLE_QUESTIONS[exam]){
     expect(CURRICULA[exam].find(subject=>subject.id===question.subjectId)?.chapters).toContain(question.chapter);
