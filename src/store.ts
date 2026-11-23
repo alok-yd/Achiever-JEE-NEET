@@ -1,4 +1,4 @@
-import { ExamKey, CURRICULA } from "./data";
+import { ExamKey, CURRICULA, PracticeQuestion } from "./data";
 import type { ExamTrack } from "./exam-config";
 
 export type PreparationMode = "Self-study"|"Coaching"|"Hybrid";
@@ -57,7 +57,7 @@ export type StudyEvent = {id:string;type:"lecture_added"|"lecture_completed"|"ch
 export type AppState = {
  schemaVersion:number; profile:Profile; completedChapters:string[];
  lectures:Lecture[]; attempts:Attempt[]; tests:TestRecord[]; revisions:RevisionItem[];
- notes:Note[]; sessions:StudySession[]; dailyTasks:DailyTask[]; flashcards:Flashcard[];
+ notes:Note[]; sessions:StudySession[]; dailyTasks:DailyTask[]; flashcards:Flashcard[]; customQuestions:PracticeQuestion[];
  bookmarkedQuestionIds:string[]; events:StudyEvent[];
  health:{sleep:number;water:number;exercise:number;meditation:number;date:string};
  streak:number; lastStudyDate:string;
@@ -75,7 +75,7 @@ export const defaultState=():AppState=>({
   preparationMode:"Hybrid",learningMedium:"English",currentStatus:"In progress"
  },
  completedChapters:[],lectures:[],attempts:[],tests:[],revisions:[],notes:[],
- sessions:[],dailyTasks:[],flashcards:[],bookmarkedQuestionIds:[],events:[],
+ sessions:[],dailyTasks:[],flashcards:[],customQuestions:[],bookmarkedQuestionIds:[],events:[],
  health:{sleep:7,water:2,exercise:20,meditation:10,date:localDate()},
  streak:0,lastStudyDate:""
 });
@@ -102,6 +102,7 @@ export function loadState():AppState {
    sessions:isArray<StudySession>(parsed.sessions)?parsed.sessions:[],
    dailyTasks:isArray<DailyTask>(parsed.dailyTasks)?parsed.dailyTasks:[],
    flashcards:isArray<Flashcard>(parsed.flashcards)?parsed.flashcards:[],
+   customQuestions:isArray<PracticeQuestion>(parsed.customQuestions)?parsed.customQuestions:[],
    bookmarkedQuestionIds:isArray<string>(parsed.bookmarkedQuestionIds)?parsed.bookmarkedQuestionIds:[],
    events:isArray<StudyEvent>(parsed.events)?parsed.events:[],
    health:{...base.health,...(parsed.health||{})},
