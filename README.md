@@ -10,6 +10,14 @@ npm run dev
 ```
 Create a production build with `npm run build`. GitHub Actions runs this check on every push to `main` and stores a downloadable `dist/` artifact for 30 days. `npm run dev` serves the client UI and local fallback; it does not run the Vercel `/api/mentor` serverless function.
 
+
+## Publish a static preview (GitHub Pages)
+1. In the repository, open **Settings → Pages** and set the source to **GitHub Actions**.
+2. Open **Actions → Deploy ACHIEVER JEE/NEET preview → Run workflow**.
+3. After it succeeds, GitHub shows the public Pages URL on the workflow run.
+
+The Pages build is a static client preview. It supports local browser storage and the local mentor fallback, but it does **not** run `api/mentor.ts`; live model inference and image/PDF analysis need a server deployment (for example, Vercel) with secured environment variables and an authenticated/rate-limited endpoint.
+
 ## What works in this starter application
 - Student profile and exam selection (JEE / NEET), saved locally in the browser.
 - Dashboard, syllabus roadmap, lecture log, AI Focus timer, PYQ attempt tracker, starter question bank, mini mock tests, test history, revision queue, notebook, health habits, analytics, strategy, settings and J.A.R.V.I.S. voice interface.
