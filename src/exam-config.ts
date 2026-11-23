@@ -31,14 +31,15 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
   notes:"The official JEE Advanced 2027 site lists the examination on 23 May 2027. Its 2027 paper structure and marking scheme are deliberately not assumed here; configure them from the official information brochure when published."
  },
  "neet-ug":{
-  id:"neet-ug",name:"NEET UG",exam:"NEET",year:"2027",
-  patternVersion:"NTA-NEET-UG-2027-portal-summary-bulletin-pending",
-  durationMinutes:200,questionCount:200,answerableCount:180,totalMarks:720,mode:"Pen-and-paper OMR",
-  status:"pending-bulletin",correctMarks:4,wrongMarks:-1,unansweredMarks:0,
+  id:"neet-ug",name:"NEET UG (2027)",exam:"NEET",year:"2027",
+  patternVersion:"NTA-NEET-UG-2027-not-yet-published",
+  durationMinutes:null,questionCount:null,answerableCount:null,totalMarks:null,mode:"Pending 2027 information bulletin",
+  status:"pending-bulletin",correctMarks:null,wrongMarks:null,unansweredMarks:0,
   sections:[{id:"physics",label:"Physics",questionCount:null},{id:"chemistry",label:"Chemistry",questionCount:null},{id:"biology",label:"Biology",questionCount:null}],
-  dateLabel:"First Sunday of May 2027 is indicated by NTA; exact date and final rules await the February 2027 information bulletin.",
-  officialSource:"https://nta.gov.in/exams/neet/",
-  notes:"NTA's current NEET UG 2027 page lists 200 questions, candidates answer 180, 3 hours 20 minutes, 720 marks and +4/−1/0. The 2027 information bulletin is expected in February; the exact schedule and details remain subject to that bulletin."
+  dateLabel:"Not confirmed on the official NTA NEET portal as of 23 November 2026. The portal currently links to NEET UG 2026 information only; wait for the 2027 bulletin before fixing date, duration, question count or marking.",
+  officialSource:"https://neet.nta.nic.in/",
+  notes:"NEET UG 2027 exam date, question structure, answerable count, duration, marks, marking scheme and syllabus are not confirmed in the currently published official NTA portal content. The portal currently lists a NEET UG 2026 bulletin and syllabus. Do not reuse the 2026 pattern as a confirmed 2027 pattern. Update this versioned configuration when NTA publishes the 2027 information bulletin."
+}
  }
 };
 export const DEFAULT_TRACK:Record<ExamKey,ExamTrack>={JEE:"jee-main",NEET:"neet-ug"};
