@@ -6,7 +6,7 @@ type RecordRow={id:string;[key:string]:unknown};
 const collections=[
  ["lectures","lectures"],["attempts","attempts"],["tests","tests"],["revisions","revisions"],
  ["notes","notes"],["sessions","studySessions"],["dailyTasks","dailyTasks"],
- ["flashcards","flashcards"],["customQuestions","customQuestions"],["events","events"]
+ ["flashcards","flashcards"],["customQuestions","customQuestions"],["healthChallenges","healthChallenges"],["events","events"]
 ] as const;
 const safeId=(id:string)=>encodeURIComponent(id).slice(0,1400);
 function removeUndefined(value:any):any{
@@ -31,7 +31,7 @@ async function replaceCollection(uid:string,collectionName:string,records:Record
 export async function saveWorkspaceToCloud(uid:string,state:AppState){
  const db=requireDb();const meta={
   schemaVersion:state.schemaVersion,profile:state.profile,completedChapters:state.completedChapters,
-  bookmarkedQuestionIds:state.bookmarkedQuestionIds,health:state.health,streak:state.streak,lastStudyDate:state.lastStudyDate,
+  bookmarkedQuestionIds:state.bookmarkedQuestionIds,ncertCompletedChapters:state.ncertCompletedChapters,health:state.health,streak:state.streak,lastStudyDate:state.lastStudyDate,
   updatedAt:new Date().toISOString()
  };
  await Promise.all([
@@ -56,6 +56,7 @@ export async function loadWorkspaceFromCloud(uid:string):Promise<AppState|null>{
   profile:{...base.profile,...(meta.profile||{})},
   completedChapters:Array.isArray(meta.completedChapters)?meta.completedChapters:[],
   bookmarkedQuestionIds:Array.isArray(meta.bookmarkedQuestionIds)?meta.bookmarkedQuestionIds:[],
+  ncertCompletedChapters:Array.isArray(meta.ncertCompletedChapters)?meta.ncertCompletedChapters:[],
   health:{...base.health,...(meta.health||{})},
   ...arrays,
   schemaVersion:2
