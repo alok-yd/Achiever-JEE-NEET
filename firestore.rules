@@ -1,11 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Every student workspace is private to its authenticated owner.
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Students can access their own workspace documents only.
+    // The collection name is checked here because Firestore ORs overlapping
+    // allow rules; a broad recursive owner rule would also expose quota docs.
+    match /users/{userId}/{collectionName}/{documentId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && collectionName != "usage";
     }
-    // Academic catalog records should be published through a separate
-    // admin-controlled collection with explicit read-only rules if/when added.
+
+    // AI quota counters are server-managed by Firebase Admin only.
+    // Client SDKs cannot read or modify them, even for their own UID.
+    match /users/{userId}/usage/{usageDocument} {
+      allow read, write: if false;
+    }
   }
 }
