@@ -44,6 +44,13 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
 export const DEFAULT_TRACK:Record<ExamKey,ExamTrack>={JEE:"jee-main",NEET:"neet-ug"};
 export const tracksForExam=(exam:ExamKey):ExamTrack[]=>exam==="JEE"?["jee-main","jee-advanced"]:["neet-ug"];
 export const formatExamTrack=(track:ExamTrack)=>EXAM_TRACKS[track].name;
+export function hasFullMockCoverage(track:ExamTrack,questions:Array<{subjectId:string}>):boolean{
+ const config=EXAM_TRACKS[track];
+ if(config.questionCount===null||config.answerableCount===null||config.totalMarks===null)return false;
+ if(questions.length!==config.questionCount||config.sections.length===0)return false;
+ if(config.sections.some(section=>section.questionCount===null))return false;
+ return config.sections.every(section=>questions.filter(q=>q.subjectId===section.id).length===section.questionCount);
+}
 export const scoreForTrack=(track:ExamTrack,correct:number,incorrect:number)=>{
  const config=EXAM_TRACKS[track];
  if(config.correctMarks===null||config.wrongMarks===null)return {score:correct,maxScore:correct+incorrect,scoreUnit:"raw correct" as const};
