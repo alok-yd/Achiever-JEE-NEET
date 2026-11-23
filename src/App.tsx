@@ -17,7 +17,7 @@ const today = () => new Date().toISOString().slice(0,10);
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
 const fmt = (n:number) => { const h=Math.floor(n/3600), m=Math.floor(n%3600/60), s=Math.floor(n%60); return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0"); };
 const dateLabel = (v:string) => new Date(v+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
-const getFocus = ():FocusData => { try { const v=JSON.parse(localStorage.getItem(FOCUS_KEY)||"null"); return v ? {...v, running:false, startedAt:null} : {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; } catch { return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; } };
+const getFocus = ():FocusData => { try { const v=JSON.parse(localStorage.getItem(FOCUS_KEY)||"null"); if(!v) return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; const recoveredElapsed=Number(v.elapsed||0)+(v.running&&v.startedAt?Math.max(0,Math.floor((Date.now()-v.startedAt)/1000)):0); return {...v,elapsed:recoveredElapsed,running:false,startedAt:null}; } catch { return {elapsed:0,startedAt:null,running:false,mode:"Practice",subjectId:"physics"}; } };
 const pageInfo:Record<PageKey,{title:string;sub:string}> = {
  dashboard:{title:"Dashboard",sub:"Your preparation, progress and next steps — all in one place."},
  roadmap:{title:"Roadmap",sub:"Turn the syllabus into clear, measurable chapter milestones."},
@@ -185,7 +185,7 @@ function Onboarding({state,onDone}:{state:AppState;onDone:(p:AppState["profile"]
   <label>Target examination<select value={exam} onChange={e=>setExam(e.target.value as ExamKey)}><option value="JEE">JEE Main + Advanced</option><option value="NEET">NEET UG</option></select></label>
   <div className="form-grid"><label>Current class<select value={level} onChange={e=>setLevel(e.target.value)}><option>Class 11</option><option>Class 12</option><option>Dropper</option><option>Other</option></select></label><label>Daily study target<select value={hours} onChange={e=>setHours(Number(e.target.value))}>{[4,5,6,7,8,9,10,11,12].map(x=><option key={x} value={x}>{x} hours</option>)}</select></label></div>
   <label>Preparation target<input value={target} onChange={e=>setTarget(e.target.value)} placeholder="e.g. Top 1000 / 650+ marks"/></label>
-  <Button onClick={()=>onDone({...state.profile,name:name.trim()||"Student",exam,classLevel:level,target,dailyHours:hours,examDate:state.profile.exam==="JEE"?EXAM_DATES.JEE:EXAM_DATES.NEET})}>Create my workspace <ArrowRight size={16}/></Button>
+  <Button onClick={()=>onDone({...state.profile,name:name.trim()||"Student",exam,classLevel:level,target,dailyHours:hours,examDate:exam==="JEE"?EXAM_DATES.JEE:EXAM_DATES.NEET})}>Create my workspace <ArrowRight size={16}/></Button>
   <small className="muted">Data is saved in this browser on this device. Cloud accounts are not connected in this release.</small>
  </div></div>;
 }
