@@ -3,6 +3,8 @@ import {defaultState,subjectStats,type Attempt} from "../src/store";
 import {buildAnalytics,buildStudentContext} from "../src/services/analytics-engine";
 import {createMistakeRevision,markAttemptWithRevision,scheduleChapterRevision} from "../src/services/study-engine";
 import {EXAM_TRACKS,scoreForTrack} from "../src/exam-config";
+import {CHAPTER_GROUPS,CURRICULA} from "../src/data";
+import {mapLegacyJeeChapter} from "../src/store";
 
 const localDate=(offset=0)=>{
  const d=new Date();d.setDate(d.getDate()+offset);
@@ -75,14 +77,39 @@ describe("analytics",()=>{
  });
 });
 
+describe("syllabus migration and coverage",()=>{
+ it("migrates common V1 JEE chapter labels to the new NTA unit headings",()=>{
+  expect(mapLegacyJeeChapter("Units & Measurements")).toBe("Units and Measurements");
+  expect(mapLegacyJeeChapter("Electrochemistry")).toBe("Redox Reactions and Electrochemistry");
+  expect(mapLegacyJeeChapter("Differentiation")).toBe("Limit, Continuity and Differentiability");
+  expect(mapLegacyJeeChapter("a custom chapter")).toBe("a custom chapter");
+ });
+ it("has a planning group for every listed JEE and NEET unit",()=>{
+  for(const exam of ["JEE","NEET"] as const){
+   for(const subject of CURRICULA[exam]){
+    const missing=subject.chapters.filter(ch=>!CHAPTER_GROUPS[exam][subject.id]?.[ch]);
+    expect(missing,exam+" / "+subject.id+" missing group mapping").toEqual([]);
+   }
+  }
+ });
+ it("has the published JEE Main 2027 unit counts",()=>{
+  expect(CURRICULA.JEE.find(x=>x.id==="physics")?.chapters).toHaveLength(20);
+  expect(CURRICULA.JEE.find(x=>x.id==="chemistry")?.chapters).toHaveLength(20);
+  expect(CURRICULA.JEE.find(x=>x.id==="mathematics")?.chapters).toHaveLength(14);
+ });
+});
+
 describe("exam configuration",()=>{
  it("keeps JEE Main scoring separate from JEE Advanced variable scoring",()=>{
   expect(scoreForTrack("jee-main",10,2)).toEqual({score:38,maxScore:48,scoreUnit:"marks"});
   expect(scoreForTrack("jee-advanced",10,2)).toEqual({score:10,maxScore:12,scoreUnit:"raw correct"});
   expect(EXAM_TRACKS["jee-advanced"].correctMarks).toBeNull();
  });
- it("retains the NEET answerable question limit in its configuration",()=>{
-  expect(EXAM_TRACKS["neet-ug"].questionCount).toBe(200);
-  expect(EXAM_TRACKS["neet-ug"].answerableCount).toBe(180);
+ it("keeps the NEET UG 2027 pattern pending until NTA publishes its bulletin",()=>{
+  expect(EXAM_TRACKS["neet-ug"].questionCount).toBeNull();
+  expect(EXAM_TRACKS["neet-ug"].answerableCount).toBeNull();
+  expect(EXAM_TRACKS["neet-ug"].durationMinutes).toBeNull();
+  expect(EXAM_TRACKS["neet-ug"].totalMarks).toBeNull();
+  expect(EXAM_TRACKS["neet-ug"].status).toBe("pending-bulletin");
  });
 });
