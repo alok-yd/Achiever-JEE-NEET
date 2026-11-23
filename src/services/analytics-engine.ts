@@ -1,5 +1,6 @@
-import type {AppState,Attempt} from "../store";
+import type {AppState} from "../store";
 import {subjectStats} from "../store";
+import {SAMPLE_QUESTIONS} from "../data";
 
 const dateKey=(date:Date)=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
 export function buildAnalytics(state:AppState,days=30){
@@ -31,7 +32,26 @@ export function buildAnalytics(state:AppState,days=30){
   weekDeltaMinutes:weekMinutes-previousWeekMinutes,attemptCount:attempts.length,accuracy:counted.length?Math.round(correct/counted.length*100):0,
   averageSeconds,mistakes,subjects,weakest};
 }
-export function buildStudentContext(state:AppState){
+const STOP_WORDS=new Set(["the","and","for","with","from","this","that","what","which","when","where","how","does","can","you","your","explain","please","question","solve","help","about","into","are","was","were","have","has","its","their","then","than"]);
+const terms=(value:string)=>Array.from(new Set(value.toLowerCase().replace(/[^a-z0-9+.-]/g," ").split(/\\s+/).filter(x=>x.length>2&&!STOP_WORDS.has(x))));
+function retrieveStudentKnowledge(state:AppState,query:string,limit=5){
+ const queryTerms=terms(query);if(!queryTerms.length)return [];
+ const questions=[...SAMPLE_QUESTIONS[state.profile.exam],...state.customQuestions.filter(q=>q.examTrack===state.profile.examTrack||!q.examTrack)];
+ const candidates:Array<{kind:string;subject:string;chapter:string;source:string;text:string;terms:string[]}>=[];
+ state.notes.forEach(note=>candidates.push({kind:note.kind==="formula"?"Formula note":"Student note",subject:note.subjectId,chapter:note.chapter||"",source:"Student-authored",text:(note.title+"\n"+note.body).slice(0,1600),terms:terms(note.title+" "+note.body+" "+(note.chapter||""))}));
+ state.flashcards.forEach(card=>candidates.push({kind:"Flashcard",subject:card.subjectId,chapter:card.chapter,source:"Student-authored",text:"Front: "+card.front+"\nBack: "+card.back,terms:terms(card.front+" "+card.back+" "+card.chapter)}));
+ questions.forEach(q=>candidates.push({kind:"Question bank item",subject:q.subjectId,chapter:q.chapter,source:q.sourceLabel||q.sourceType||"Unknown source",text:q.prompt+"\nOptions: "+q.options.join(" | ")+"\nExplanation: "+q.explanation,terms:terms(q.prompt+" "+q.chapter+" "+(q.topic||"")+" "+q.explanation)}));
+ state.attempts.filter(a=>a.result==="incorrect").slice(0,80).forEach(a=>candidates.push({kind:"Previous mistake",subject:a.subjectId,chapter:a.chapter,source:a.sourceLabel||"Attempt history",text:"Incorrect attempt: "+(a.topic||a.chapter)+". Mistake category: "+(a.mistakeCategory||a.mistake||"Unclassified")+". Notes: "+(a.notes||"No notes recorded"),terms:terms((a.topic||"")+" "+a.chapter+" "+(a.mistakeCategory||"")+" "+(a.notes||""))}));
+ state.revisions.filter(x=>!x.done).forEach(x=>candidates.push({kind:"Pending revision",subject:x.subjectId,chapter:x.chapter,source:x.source,text:x.title+"\n"+(x.notes||""),terms:terms(x.title+" "+x.chapter+" "+(x.notes||""))}));
+ return candidates.map(item=>{
+  const overlap=queryTerms.filter(term=>item.terms.includes(term)).length;
+  const score=overlap/(Math.sqrt(queryTerms.length)*Math.sqrt(Math.max(1,item.terms.length)));
+  return {...item,score};
+ }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,limit)
+  .map((x,i)=>({rank:i+1,kind:x.kind,subject:x.subject,chapter:x.chapter,source:x.source,text:x.text,score:Number(x.score.toFixed(3))}));
+}
+
+export function buildStudentContext(state:AppState,query=""){
  const a=buildAnalytics(state,30);
  const due=state.revisions.filter(x=>!x.done&&x.dueDate<=dateKey(new Date())).length;
  const nextTasks=state.dailyTasks.filter(x=>!x.done).sort((x,y)=>x.date.localeCompare(y.date)).slice(0,5);
