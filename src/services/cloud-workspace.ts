@@ -6,7 +6,7 @@ type RecordRow={id:string;[key:string]:unknown};
 const collections=[
  ["lectures","lectures"],["attempts","attempts"],["tests","tests"],["revisions","revisions"],
  ["notes","notes"],["sessions","studySessions"],["dailyTasks","dailyTasks"],
- ["flashcards","flashcards"],["customQuestions","customQuestions"],["healthChallenges","healthChallenges"],["events","events"]
+ ["flashcards","flashcards"],["customQuestions","customQuestions"],["healthChallenges","healthChallenges"],["aiMessages","aiMessages"],["events","events"]
 ] as const;
 const safeId=(id:string)=>encodeURIComponent(id).slice(0,1400);
 function removeUndefined(value:any):any{
