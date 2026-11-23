@@ -55,7 +55,7 @@ export default function App() {
  const [mobileNav,setMobileNav] = useState(false);
  const [onboarding,setOnboarding] = useState(()=>!localStorage.getItem("achiever-onboarded"));
  const [focus,setFocus] = useState<FocusData>(()=>getFocus());
- const [seconds,setSeconds] = useState(0);
+ const [seconds,setSeconds] = useState(()=>focus.elapsed);
  const [toast,setToast] = useState("");
  const [jarvis,setJarvis] = useState(false);
  const [mentorInput,setMentorInput] = useState("");
@@ -149,7 +149,7 @@ export default function App() {
    <nav className="navigation">{PAGE_ITEMS.map(([label,key])=><button key={key} className={"nav-item "+(page===key?"active":"")} onClick={()=>navigate(key)}><NavIcon name={key}/><span>{label}</span>{key==="focus"&&focus.running?<em>{fmt(seconds)}</em>:null}</button>)}</nav>
    <div className="sidebar-bottom">
     <div className="institute-mark"><div><GraduationCap size={30}/><b>{state.profile.exam==="JEE"?"IIT":"AIIMS"}</b></div></div>
-    <div className="goal-count"><div><span>{state.profile.exam} {state.profile.targetYear} (Goal)</span><Pill tone="blue">{Math.max(0,Math.ceil((new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000))} Days</Pill></div><Progress value={Math.max(0,Math.min(100,100-(Math.max(0,(new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000)/365*100)))}/></div>
+    <div className="goal-count"><div><span>{state.profile.exam==="JEE"?"JEE Main Session 1": "NEET UG"} {state.profile.targetYear}</span><Pill tone="blue">{state.profile.examDate?Math.max(0,Math.ceil((new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000))+" Days":"Date pending"}</Pill></div><Progress value={state.profile.examDate?Math.max(0,Math.min(100,100-Math.max(0,(new Date(state.profile.examDate+"T00:00:00").getTime()-Date.now())/86400000)/365*100)):0}/></div>
     <div className="target-box"><small>TARGET</small><b><Star size={16} fill="currentColor"/> {state.profile.target}</b><span>{state.profile.targetCollege}</span></div>
     <button className="profile-button" onClick={()=>navigate("settings")}><i>{state.profile.name.slice(0,1).toUpperCase()}</i><span><b>{state.profile.name}</b><small>{state.profile.exam} • {state.profile.classLevel}</small></span><Settings size={15}/></button>
    </div>
