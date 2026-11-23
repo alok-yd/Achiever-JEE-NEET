@@ -21,10 +21,10 @@ The UI attempts `POST /api/mentor`. Configure `OPENAI_API_KEY`, optional `OPENAI
 
 ## Data and exam-pattern notes
 - This repository ships with a **starter curriculum and illustrative practice questions**, not a complete or officially verified PYQ database. Do not label these sample questions as official PYQs.
-- JEE Main 2027 pattern shown in the app reflects the NTA portal summary checked on 23 November 2026: Paper 1, 75 questions, 3 hours, 300 marks, +4/−1/0.
-- NEET UG 2027 portal summary currently shows 200 questions, candidates answer 180, 3 hours 20 minutes, 720 marks, +4/−1/0; NTA indicates the information bulletin is expected in February 2027. Confirm the final bulletin before publishing a full-length pattern.
-- JEE Advanced mock templates are intentionally configurable; do not treat the sample mini-test as an official paper structure.
-- Official reference pages: https://nta.gov.in/exams/jee/ · https://nta.gov.in/exams/neet/ · https://jeeadv.ac.in/
+- The NTA JEE Main 2027 portal currently lists Paper 1 as 75 compulsory questions (25 each in Physics, Chemistry and Mathematics), 3 hours, 300 marks and +4/−1/0. Official NTA FAQ lists Session 1 dates as 20–24 and 28 January 2027 and Session 2 as 2–7 April 2027. The app countdown defaults to 20 January (the first listed Session 1 date); students should check their own allotted date and session.
+- The NTA NEET UG 2027 portal currently lists 200 questions, candidates answer 180, 3 hours 20 minutes and +4/−1/0. It says the 2027 information bulletin is expected in February 2027 and describes the examination day as the first Sunday of May. The app leaves the exact NEET date blank until the official bulletin confirms it.
+- JEE Advanced 2027 is listed for 23 May 2027 on its official website. Mock templates remain configurable; the starter mini-test is not an official paper structure.
+- Official reference pages: https://www.nta.gov.in/exams/jee/ · https://nta.gov.in/exams/neet/ · https://jeeadv.ac.in/
 
 ## Production readiness
 This first implementation is a functional client-side workspace with local persistence. Before enrolling real students, connect Firebase Authentication/Firestore/Storage, add authenticated cloud backup, configure and test the AI provider, publish a reviewed official syllabus/question bank with source rights, and run end-to-end/accessibility/security tests. Never store API secrets in the browser.
