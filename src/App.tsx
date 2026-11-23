@@ -14,7 +14,7 @@ import { firebaseAppCheck, firebaseAuth, firebaseConfigState } from "./services/
 import { getToken as getAppCheckToken } from "firebase/app-check";
 import { createCloudAccount, signInToCloudAccount, signOutCloudAccount, subscribeToCloudUser } from "./services/firebase-auth";
 import { loadWorkspaceFromCloud, saveWorkspaceToCloud } from "./services/cloud-workspace";
-import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type HealthChallenge, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
+import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type AIConversationMessage, type Attempt, type DailyTask, type Flashcard, type HealthChallenge, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
 
 type PageKey = typeof PAGE_ITEMS[number][1];
 type FocusMode = "Lecture" | "Practice" | "Revision" | "Reading" | "Mock test";
@@ -72,7 +72,7 @@ export default function App() {
  const [jarvis,setJarvis] = useState(false);
  const [mentorInput,setMentorInput] = useState("");
  const [mentorBusy,setMentorBusy] = useState(false);
- const [messages,setMessages] = useState<ChatMessage[]>([{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
+ const [messages,setMessages] = useState<ChatMessage[]>(()=>state.aiMessages.length?state.aiMessages.map(m=>({role:m.role,text:m.text})): [{role:"assistant",text:"Namaste! I’m your ACHIEVER study mentor. Ask a concept doubt, share a question, or attach a question image or PDF for help."}]);
  const subjects = CURRICULA[state.profile.exam];
  const stats = useMemo(()=>subjectStats(state),[state]);
  const analytics30 = useMemo(()=>buildAnalytics(state,30),[state]);
@@ -189,32 +189,47 @@ export default function App() {
   }
   return "I can help with "+formatExamTrack(state.profile.examTrack)+" concepts, daily planning, revision and performance analysis. The workspace has "+state.attempts.length+" logged attempts, "+state.tests.length+" submitted tests and "+studyMinutes+" focus minutes. Connect an authenticated server-side AI deployment for model-powered tutoring.";
  };
+ const persistAIMessage=(role:"assistant"|"user",text:string,channel:"mentor"|"jarvis",attachmentNames:string[] = [])=>{
+  const record:AIConversationMessage={id:uid(),role,text,channel,createdAt:new Date().toISOString(),attachmentNames:attachmentNames.length?attachmentNames:undefined};
+  update(s=>({...s,aiMessages:[...s.aiMessages,record].slice(-120)}));
+ };
  const askMentor=async(message:string,files:PendingChatFile[] = [])=>{
   if(!message.trim()&&!files.length)return;
   const prompt=message.trim()||"Please inspect the attached question or study document and explain it step by step.";
-  setMessages(m=>m.concat({role:"user",text:prompt,attachments:files.map(x=>({name:x.file.name,mimeType:x.file.type,previewUrl:x.previewUrl}))}));setMentorInput("");setMentorBusy(true);
+  const attachmentNames=files.map(x=>x.file.name);
+  setMessages(m=>m.concat({role:"user",text:prompt,attachments:files.map(x=>({name:x.file.name,mimeType:x.file.type,previewUrl:x.previewUrl}))}));
+  persistAIMessage("user",prompt,"mentor",attachmentNames);
+  setMentorInput("");setMentorBusy(true);
+  const appendReply=(answer:string)=>{
+   setMessages(m=>m.concat({role:"assistant",text:answer}));
+   persistAIMessage("assistant",answer,"mentor");
+  };
   try{
    const attachments=await Promise.all(files.map(async x=>({name:x.file.name,mimeType:x.file.type,dataUrl:await fileToDataUrl(x.file)})));
    const token=await firebaseAuth?.currentUser?.getIdToken();
    const appCheckToken=firebaseAppCheck?await getAppCheckToken(firebaseAppCheck).then(x=>x.token).catch(()=>""):"";
    const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;if(appCheckToken)headers["X-Firebase-AppCheck"]=appCheckToken;
-   const r=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message:prompt,context:coachContext(),attachments})});
+   const r=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message:prompt,context:coachContext(prompt),attachments})});
    const d=await r.json();
    const fallback=localCoach(prompt)+(files.length?"\n\nThe selected attachment could not be analysed because live AI is not configured. Configure the server-side AI provider to enable image and PDF question solving.":"");
-   setMessages(m=>m.concat({role:"assistant",text:r.ok&&d.reply?d.reply:fallback+(d.error?"\n\nLive AI unavailable: "+d.error:"")}));
-  }catch{setMessages(m=>m.concat({role:"assistant",text:localCoach(prompt)+(files.length?"\n\nThe attachment could not be sent. Check its size and try again.":"")}));}
-  finally{setMentorBusy(false);}
+   appendReply(r.ok&&d.reply?d.reply:fallback+(d.error?"\n\nLive AI unavailable: "+d.error:""));
+  }catch{
+   appendReply(localCoach(prompt)+(files.length?"\n\nThe attachment could not be sent. Check its size and try again.":""));
+  }finally{setMentorBusy(false);}
  };
  const askJarvis=async(message:string)=>{
+  persistAIMessage("user",message,"jarvis");
+  let answer="";
   try{
    const token=await firebaseAuth?.currentUser?.getIdToken();
    const appCheckToken=firebaseAppCheck?await getAppCheckToken(firebaseAppCheck).then(x=>x.token).catch(()=>""):"";
    const headers:Record<string,string>={"content-type":"application/json"};if(token)headers.authorization="Bearer "+token;if(appCheckToken)headers["X-Firebase-AppCheck"]=appCheckToken;
-   const response=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message,context:coachContext()})});
+   const response=await fetch("/api/mentor",{method:"POST",headers,body:JSON.stringify({message,context:coachContext(message)})});
    const data=await response.json();
-   if(response.ok&&data.reply)return String(data.reply);
-  }catch{/* Use the local mentor fallback below when the server is unavailable. */}
-  return localCoach(message);
+   answer=response.ok&&data.reply?String(data.reply):localCoach(message)+(data.error?"\n\nLive AI unavailable: "+data.error:"");
+  }catch{answer=localCoach(message);}
+  persistAIMessage("assistant",answer,"jarvis");
+  return answer;
  };
  const pageBody=()=>{
   switch(page){
