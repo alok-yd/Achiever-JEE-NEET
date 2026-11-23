@@ -6,7 +6,7 @@ export type ExamTrackConfig={
  totalMarks:number|null;mode:string;status:"published"|"variable"|"pending-bulletin";
  correctMarks:number|null;wrongMarks:number|null;unansweredMarks:number;
  sections:{id:string;label:string;questionCount:number|null}[];
- dateLabel:string;dateStart?:string;dateEnd?:string;exactDate?:string;
+ dateLabel:string;dateStart?:string;dateEnd?:string;dateList?:string[];exactDate?:string;
  officialSource:string;notes:string;
 };
 export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
@@ -16,8 +16,8 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
   durationMinutes:180,questionCount:75,answerableCount:75,totalMarks:300,mode:"Computer-based test",
   status:"published",correctMarks:4,wrongMarks:-1,unansweredMarks:0,
   sections:[{id:"physics",label:"Physics",questionCount:25},{id:"chemistry",label:"Chemistry",questionCount:25},{id:"mathematics",label:"Mathematics",questionCount:25}],
-  dateLabel:"Session 1: 22–30 January 2027; Session 2: April 2027. Candidate-specific shift/date to be confirmed on the admit card.",
-  dateStart:"2027-01-22",dateEnd:"2027-01-30",officialSource:"https://nta.gov.in/exams/jee/",
+  dateLabel:"Session 1 dates: 20, 21, 22, 23, 24 and 28 January 2027; Session 2: 2–7 April 2027. Candidate-specific shift/date is on the admit card.",
+  dateStart:"2027-01-20",dateEnd:"2027-01-28",dateList:["2027-01-20","2027-01-21","2027-01-22","2027-01-23","2027-01-24","2027-01-28"],officialSource:"https://nta.gov.in/exams/jee/",
   notes:"NTA's current JEE Main 2027 page lists 75 compulsory questions (25 each in Physics, Chemistry and Mathematics), 3 hours, 300 marks and +4/−1/0. The page lists Session 1 exam dates as 22–30 January 2027 and Session 2 in April 2027. Candidate-specific dates vary."
  },
  "jee-advanced":{
