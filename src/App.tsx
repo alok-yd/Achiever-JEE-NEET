@@ -14,7 +14,7 @@ import { firebaseAppCheck, firebaseAuth, firebaseConfigState } from "./services/
 import { getToken as getAppCheckToken } from "firebase/app-check";
 import { createCloudAccount, signInToCloudAccount, signOutCloudAccount, subscribeToCloudUser } from "./services/firebase-auth";
 import { loadWorkspaceFromCloud, saveWorkspaceToCloud } from "./services/cloud-workspace";
-import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
+import { addStudyDay, loadState, saveState, subjectStats, totalStudyMinutes, uid, type AppState, type Attempt, type DailyTask, type Flashcard, type HealthChallenge, type Lecture, type Note, type RevisionItem, type TestRecord } from "./store";
 
 type PageKey = typeof PAGE_ITEMS[number][1];
 type FocusMode = "Lecture" | "Practice" | "Revision" | "Reading" | "Mock test";
@@ -96,6 +96,19 @@ export default function App() {
  },[focus]);
  useEffect(()=>{ if(!toast)return; const t=window.setTimeout(()=>setToast(""),2800); return ()=>window.clearTimeout(t); },[toast]);
  const navigate=(p:PageKey)=>{setPage(p);setMobileNav(false);window.scrollTo({top:0,behavior:"smooth"});};
+ const markNcertChapter=(subjectId:string,chapter:string)=>update(s=>{
+  const key=subjectId+"::"+chapter;
+  return {...s,ncertCompletedChapters:s.ncertCompletedChapters.includes(key)?s.ncertCompletedChapters.filter(x=>x!==key):[...s.ncertCompletedChapters,key]};
+ });
+ const addHealthChallenge=(challenge:Pick<HealthChallenge,"title"|"days"|"goal">)=>update(s=>({
+  ...s,healthChallenges:[{...challenge,id:uid(),startDate:today(),completedDates:[],active:true},...s.healthChallenges]
+ }));
+ const markHealthChallengeDay=(id:string)=>update(s=>({...s,healthChallenges:s.healthChallenges.map(ch=>{
+  if(ch.id!==id||!ch.active)return ch;
+  const done=ch.completedDates.includes(today());
+  const completedDates=done?ch.completedDates.filter(d=>d!==today()):[...ch.completedDates,today()].sort();
+  return {...ch,completedDates,active:completedDates.length<ch.days};
+ })}));
  const markChapter=(subjectId:string,chapter:string)=>update(s=>{
   const key=subjectId+"::"+chapter;const completing=!s.completedChapters.includes(key);
   const completedChapters=completing?s.completedChapters.concat(key):s.completedChapters.filter(x=>x!==key);
@@ -207,7 +220,7 @@ export default function App() {
   switch(page){
    case "dashboard":return <Dashboard state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes} completedLectures={completedLectures} due={state.revisions.filter(x=>!x.done&&x.dueDate<=today()).length} go={navigate} toggleTask={toggleDailyTask}/>;
    case "planner":return <StudyPlanner state={state} addTask={addDailyTask} toggleTask={toggleDailyTask}/>;
-   case "roadmap":return <Roadmap state={state} markChapter={markChapter} addRevision={addRevision}/>;
+   case "roadmap":return <Roadmap state={state} markChapter={markChapter} markNcertChapter={markNcertChapter} addRevision={addRevision}/>;
    case "focus":return <FocusPage state={state} focus={focus} seconds={seconds} setFocus={setFocus} start={startFocus} pause={pauseFocus} finish={finishFocus}/>;
    case "lectures":return <Lectures state={state} addLecture={addLecture} toggleLecture={toggleLecture}/>;
    case "pyq":return <PYQPage state={state} addAttempt={recordManualAttempt}/>;
@@ -216,7 +229,7 @@ export default function App() {
    case "performance":return <Performance state={state}/>;
    case "revision":return <Revision state={state} addRevision={addRevision} update={update}/>;
    case "notebook":return <Notebook state={state} saveNote={saveNote} addFlashcard={addFlashcard} reviewFlashcard={reviewFlashcard} addRevision={addRevision}/>;
-   case "health":return <Health state={state} update={update}/>;
+   case "health":return <Health state={state} update={update} addChallenge={addHealthChallenge} markChallengeDay={markHealthChallengeDay}/>;
    case "mentor":return <Mentor messages={messages} input={mentorInput} setInput={setMentorInput} send={askMentor} busy={mentorBusy}/>;
    case "analytics":return <Analytics state={state} stats={stats} syllabusPct={syllabusPct} accuracy={accuracy} studyMinutes={studyMinutes} analytics={analytics30}/>;
    case "strategy":return <Strategy state={state} stats={stats}/>;
@@ -310,10 +323,10 @@ function Dashboard({state,stats,syllabusPct,accuracy,studyMinutes,completedLectu
  </div>;
 }
 
-function Roadmap({state,markChapter,addRevision}:{state:AppState;markChapter:(s:string,c:string)=>void;addRevision:(v:{title:string;subjectId:string;chapter:string;dueDate:string})=>void}){
+function Roadmap({state,markChapter,markNcertChapter,addRevision}:{state:AppState;markChapter:(s:string,c:string)=>void;markNcertChapter:(s:string,c:string)=>void;addRevision:(v:{title:string;subjectId:string;chapter:string;dueDate:string})=>void}){
  const [open,setOpen]=useState(CURRICULA[state.profile.exam][0].id);
  const list=subjectStats(state);
- return <div className="page-stack"><div className="roadmap-banner"><div><small>SYLLABUS ROADMAP</small><h2>Your {formatExamTrack(state.profile.examTrack)} learning map</h2><p>Organized by subject and planning group. Chapter mastery remains student-controlled.</p></div><b>{list.reduce((n,x)=>n+x.complete,0)}<small> / {list.reduce((n,x)=>n+x.total,0)}</small><span>manual chapter completions</span></b></div>
+ return <div className="page-stack"><div className="roadmap-banner"><div><small>SYLLABUS ROADMAP</small><h2>Your {formatExamTrack(state.profile.examTrack)} learning map</h2><p>Organized by subject and planning group. Chapter mastery remains student-controlled.</p></div><b>{list.reduce((n,x)=>n+x.complete,0)}<small> / {list.reduce((n,x)=>n+x.total,0)}</small><span>manual chapter completions</span>{state.profile.exam==="NEET"?<small>{state.ncertCompletedChapters.length} NCERT chapters marked read</small>:null}</b></div>
   <div className="notice"><ShieldCheck size={17}/> This is a starter planning map, not a certified complete syllabus. Verify chapter inclusion and topic detail against the official syllabus for the selected examination year. Lecture, question and revision activity are shown separately from a manual mastery declaration.</div>
   {list.map(s=>{
    const map=CHAPTER_GROUPS[state.profile.exam][s.id]||{};
@@ -322,7 +335,7 @@ function Roadmap({state,markChapter,addRevision}:{state:AppState;markChapter:(s:
     <button className="subject-toggle" onClick={()=>setOpen(open===s.id?"":s.id)}><i style={{background:s.color+"19",color:s.color}}><BookOpen size={19}/></i><span><b>{s.name}</b><small>{s.complete} of {s.total} manually completed • {s.lectureCount} lectures • {s.attempts} counted attempts</small><Progress value={s.progress} color={s.color}/></span><strong>{s.progress}%</strong>{open===s.id?<ChevronDown size={18}/>:<ChevronRight size={18}/>}</button>
     {open===s.id&&<div className="chapters">{groups.map(group=><div className="roadmap-group" key={group}><h4>{group}</h4>{s.chapters.filter(ch=>(map[ch]||"Other")===group).map((chapter,i)=>{
      const activity=chapterActivity(state,s.id,chapter);
-     return <div className="chapter roadmap-chapter" key={chapter}><small>{String(i+1).padStart(2,"0")}</small><span><b className={activity.manuallyComplete?"done":""}>{chapter}</b><em>{activity.manuallyComplete?"Mastery marked complete":activity.activityPct+"% activity signal • not marked complete"}</em><div className="chapter-metrics"><Pill>{activity.lectures} lectures</Pill><Pill>{activity.attempts} attempts</Pill><Pill tone={activity.attempts&&activity.accuracy>=70?"green":"slate"}>{activity.attempts?activity.accuracy+"% accuracy":"No accuracy yet"}</Pill><Pill>{activity.revisionsDone}/{activity.revisions} revisions</Pill></div></span><button className={"check-button "+(activity.manuallyComplete?"checked":"")} title="Toggle manual mastery status" onClick={()=>markChapter(s.id,chapter)}>{activity.manuallyComplete?<Check size={15}/>:null}</button><button className="mini-button" title="Schedule spaced revision plan" onClick={()=>addRevision({title:"Revise "+chapter,subjectId:s.id,chapter,dueDate:today()})}><RefreshCw size={14}/></button></div>;
+     return <div className="chapter roadmap-chapter" key={chapter}><small>{String(i+1).padStart(2,"0")}</small><span><b className={activity.manuallyComplete?"done":""}>{chapter}</b><em>{activity.manuallyComplete?"Mastery marked complete":activity.activityPct+"% activity signal • not marked complete"}</em><div className="chapter-metrics"><Pill>{activity.lectures} lectures</Pill><Pill>{activity.attempts} attempts</Pill><Pill tone={activity.attempts&&activity.accuracy>=70?"green":"slate"}>{activity.attempts?activity.accuracy+"% accuracy":"No accuracy yet"}</Pill><Pill>{activity.revisionsDone}/{activity.revisions} revisions</Pill></div></span><button className={"check-button "+(activity.manuallyComplete?"checked":"")} title="Toggle manual mastery status" onClick={()=>markChapter(s.id,chapter)}>{activity.manuallyComplete?<Check size={15}/>:null}</button><button className="mini-button" title="Schedule spaced revision plan" onClick={()=>addRevision({title:"Revise "+chapter,subjectId:s.id,chapter,dueDate:today()})}><RefreshCw size={14}/></button>{state.profile.exam==="NEET"?<button className={"ncert-button "+(state.ncertCompletedChapters.includes(s.id+"::"+chapter)?"read":"")} title="Toggle NCERT reading progress" onClick={()=>markNcertChapter(s.id,chapter)}>{state.ncertCompletedChapters.includes(s.id+"::"+chapter)?"NCERT read":"NCERT pending"}</button>:null}</div>;
     })}</div>)}</div>}
    </Card>;
   })}
@@ -539,9 +552,32 @@ function Notebook({state,saveNote,addFlashcard,reviewFlashcard,addRevision}:{sta
   <div className="two-col"><Card><small>CREATE FLASHCARD</small><h3>Active recall card</h3><form className="form-stack" onSubmit={e=>{e.preventDefault();if(!front.trim()||!back.trim())return;addFlashcard({front,back,subjectId:flashSubject,chapter:flashChapter,intervalDays:0,repetitions:0,ease:2.5});setFront("");setBack("");}}><label>Subject<select value={flashSubject} onChange={e=>setFlashSubject(e.target.value)}>{CURRICULA[state.profile.exam].map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>Chapter<select value={flashChapter} onChange={e=>setFlashChapter(e.target.value)}>{chaptersFor(state.profile.exam,flashSubject).map(x=><option key={x}>{x}</option>)}</select></label><label>Front / question<input value={front} onChange={e=>setFront(e.target.value)} placeholder="Ask yourself a question"/></label><label>Back / answer<textarea rows={4} value={back} onChange={e=>setBack(e.target.value)} placeholder="Write the answer or key concept"/></label><Button type="submit"><Plus size={15}/> Create flashcard</Button></form></Card><Card><div className="card-head"><div><small>SPACED ACTIVE RECALL</small><h3>Review flashcards</h3></div><Pill tone="blue">{dueCards.length} due</Pill></div>{state.flashcards.length===0?<Empty title="No flashcards yet" detail="Create a question-and-answer card to practise retrieval."/>:state.flashcards.map(card=>{const show=flipped.includes(card.id);return <div className="flashcard" key={card.id}><small>{subjectLabel(state.profile.exam,card.subjectId)} • {card.chapter} • {card.dueAt&&card.dueAt>today()?"Scheduled "+dateLabel(card.dueAt):"Due for review"}</small><b>{show?card.back:card.front}</b><Button variant="secondary" onClick={()=>setFlipped(v=>show?v.filter(x=>x!==card.id):v.concat(card.id))}>{show?"Show question":"Reveal answer"}</Button>{show&&<div className="button-row"><Button variant="danger" onClick={()=>reviewFlashcard(card.id,false)}>Again</Button><Button onClick={()=>reviewFlashcard(card.id,true)}>Got it</Button></div>}</div>;})}</Card></div>}
  </div>;
 }
-function Health({state,update}:{state:AppState;update:(fn:(s:AppState)=>AppState)=>void}){
+function Health({state,update,addChallenge,markChallengeDay}:{state:AppState;update:(fn:(s:AppState)=>AppState)=>void;addChallenge:(v:Pick<HealthChallenge,"title"|"days"|"goal">)=>void;markChallengeDay:(id:string)=>void}){
  const h=state.health;const change=(k:"sleep"|"water"|"exercise"|"meditation",v:number)=>update(s=>({...s,health:{...s.health,[k]:v,date:today()}}));
- return <div className="page-stack"><div className="health-banner"><HeartPulse size={24}/><span><b>Preparation is a marathon, not a sprint.</b><small>Track simple habits that support attention, recovery and consistency.</small></span></div><div className="health-grid"><HealthMetric title="Sleep" value={h.sleep} unit="hours" min={0} max={14} step={.5} icon={Clock3} change={v=>change("sleep",v)} detail="Adjust to your needs"/><HealthMetric title="Water" value={h.water} unit="litres" min={0} max={6} step={.25} icon={Activity} change={v=>change("water",v)} detail="Adjust to climate and activity"/><HealthMetric title="Movement" value={h.exercise} unit="minutes" min={0} max={240} step={5} icon={Heart} change={v=>change("exercise",v)} detail="Add movement breaks"/><HealthMetric title="Meditation" value={h.meditation} unit="minutes" min={0} max={120} step={5} icon={Brain} change={v=>change("meditation",v)} detail="Short daily practice"/></div><Card><small>DAILY BALANCE</small><h3>Protect your energy</h3><ul className="check-list"><li>Take short breaks between demanding study blocks and rest your eyes.</li><li>Keep a consistent sleep schedule instead of relying on late-night catch-up.</li><li>Use this tracker for awareness, not as a medical assessment.</li></ul></Card></div>;
+ const todayMinutes=state.sessions.filter(x=>x.date===today()).reduce((n,x)=>n+x.minutes,0);
+ const revisionDone=state.revisions.filter(x=>x.done).length;
+ const templates:Pick<HealthChallenge,"title"|"days"|"goal">[]=[
+  {title:"Study consistency",days:30,goal:"study"},
+  {title:"Daily meditation",days:100,goal:"meditation"},
+  {title:"Daily revision habit",days:30,goal:"revision"},
+  {title:"Long-term study discipline",days:100,goal:"study"}
+ ];
+ const currentStreak=(dates:string[])=>{
+  const set=new Set(dates);let d=new Date(today()+"T12:00:00");if(!set.has(today()))d.setDate(d.getDate()-1);
+  let n=0;while(set.has(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"))){n++;d.setDate(d.getDate()-1);}return n;
+ };
+ return <div className="page-stack"><div className="health-banner"><HeartPulse size={24}/><span><b>Preparation is a marathon, not a sprint.</b><small>Track simple habits that support attention, recovery and consistency.</small></span></div>
+  <div className="health-grid"><HealthMetric title="Sleep" value={h.sleep} unit="hours" min={0} max={14} step={.5} icon={Clock3} change={v=>change("sleep",v)} detail="Adjust to your needs"/><HealthMetric title="Water" value={h.water} unit="litres" min={0} max={6} step={.25} icon={Activity} change={v=>change("water",v)} detail="Adjust to climate and activity"/><HealthMetric title="Movement" value={h.exercise} unit="minutes" min={0} max={240} step={5} icon={Heart} change={v=>change("exercise",v)} detail="Add movement breaks"/><HealthMetric title="Meditation" value={h.meditation} unit="minutes" min={0} max={120} step={5} icon={Brain} change={v=>change("meditation",v)} detail="Short daily practice"/></div>
+  <Card><div className="card-head"><div><small>HABIT CHALLENGES</small><h3>30-day and 100-day consistency</h3></div><Pill tone="blue">Self-reported</Pill></div><div className="challenge-templates">{templates.map(t=><button key={t.title} className="challenge-template" onClick={()=>addChallenge(t)}><Plus size={14}/><span>{t.title}<small>{t.days} days</small></span></button>)}</div>
+   {state.healthChallenges.length===0?<Empty title="No active challenges" detail="Start a study, revision or meditation challenge to track daily check-ins."/>:state.healthChallenges.map(ch=>{
+    const todayDone=ch.completedDates.includes(today());const progress=Math.min(100,Math.round(ch.completedDates.length/ch.days*100));
+    const current=currentStreak(ch.completedDates);
+    return <div className="challenge-row" key={ch.id}><div className="challenge-info"><b>{ch.title}</b><small>{ch.days}-day goal • {ch.goal} • {ch.completedDates.length}/{ch.days} check-ins • {current}-day current streak</small><Progress value={progress} color="#17a77d"/></div><Pill tone={ch.active?"blue":"green"}>{ch.active?"In progress":"Completed"}</Pill><Button size="sm" variant={todayDone?"secondary":"primary"} disabled={!ch.active} onClick={()=>markChallengeDay(ch.id)}>{todayDone?"Checked in today":"Mark today"}</Button></div>;
+   })}
+   <p className="disclaimer">Challenge check-ins are self-reported and are not automatically inferred from timer, camera or health data. A check-in can be removed by clicking it again on the same day.</p>
+  </Card>
+  <Card><small>DAILY BALANCE</small><h3>Protect your energy</h3><div className="metric"><span>Focus time recorded today</span><b>{todayMinutes} min</b></div><div className="metric"><span>Revision items marked complete</span><b>{revisionDone}</b></div><div className="metric"><span>NCERT chapters read (NEET)</span><b>{state.profile.exam==="NEET"?state.ncertCompletedChapters.length:"Not applicable"}</b></div><ul className="check-list"><li>Take short breaks between demanding study blocks and rest your eyes.</li><li>Keep a consistent sleep schedule instead of relying on late-night catch-up.</li><li>Use this tracker for awareness, not as a medical assessment.</li></ul></Card>
+ </div>;
 }
 function HealthMetric(p:{title:string;value:number;unit:string;min:number;max:number;step:number;icon:React.ElementType;change:(v:number)=>void;detail:string}){
  const Icon=p.icon;return <Card className="health-metric"><i><Icon size={19}/></i><h3>{p.title}</h3><b>{p.value}<small>{p.unit}</small></b><input type="range" min={p.min} max={p.max} step={p.step} value={p.value} onChange={e=>p.change(Number(e.target.value))}/><span>{p.detail}</span></Card>;
