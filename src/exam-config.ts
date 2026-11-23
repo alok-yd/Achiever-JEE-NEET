@@ -40,7 +40,6 @@ export const EXAM_TRACKS:Record<ExamTrack,ExamTrackConfig>={
   officialSource:"https://neet.nta.nic.in/",
   notes:"NEET UG 2027 exam date, question structure, answerable count, duration, marks, marking scheme and syllabus are not confirmed in the currently published official NTA portal content. The portal currently lists a NEET UG 2026 bulletin and syllabus. Do not reuse the 2026 pattern as a confirmed 2027 pattern. Update this versioned configuration when NTA publishes the 2027 information bulletin."
 }
- }
 };
 export const DEFAULT_TRACK:Record<ExamKey,ExamTrack>={JEE:"jee-main",NEET:"neet-ug"};
 export const tracksForExam=(exam:ExamKey):ExamTrack[]=>exam==="JEE"?["jee-main","jee-advanced"]:["neet-ug"];
