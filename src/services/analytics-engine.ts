@@ -39,7 +39,7 @@ export function buildAnalytics(state:AppState,days=30){
   averageSeconds,mistakes,subjects,weakest};
 }
 const STOP_WORDS=new Set(["the","and","for","with","from","this","that","what","which","when","where","how","does","can","you","your","explain","please","question","solve","help","about","into","are","was","were","have","has","its","their","then","than"]);
-const terms=(value:string)=>Array.from(new Set(value.toLowerCase().replace(/[^a-z0-9+.-]/g," ").split(/\\s+/).filter(x=>x.length>2&&!STOP_WORDS.has(x))));
+const terms=(value:string)=>Array.from(new Set(value.toLowerCase().replace(/[^a-z0-9+.-]/g," ").split(/\s+/).filter(x=>x.length>2&&!STOP_WORDS.has(x))));
 function retrieveStudentKnowledge(state:AppState,query:string,limit=5){
  const queryTerms=terms(query);if(!queryTerms.length)return [];
  const questions=[...SAMPLE_QUESTIONS[state.profile.exam],...state.customQuestions.filter(q=>q.examTrack===state.profile.examTrack||!q.examTrack)];
@@ -61,6 +61,7 @@ export function buildStudentContext(state:AppState,query=""){
  const a=buildAnalytics(state,30);
  const due=state.revisions.filter(x=>!x.done&&x.dueDate<=dateKey(new Date())).length;
  const nextTasks=state.dailyTasks.filter(x=>!x.done).sort((x,y)=>x.date.localeCompare(y.date)).slice(0,5);
+ const retrieved=query.trim()?retrieveStudentKnowledge(state,query):[];
  return [
   "Student: "+state.profile.name,
   "Examination: "+state.profile.examTrack+" / "+state.profile.targetYear,
@@ -72,11 +73,12 @@ export function buildStudentContext(state:AppState,query=""){
   "Recorded focus minutes (all-time): "+state.sessions.reduce((n,x)=>n+x.minutes,0),
   "Last 30 days focus minutes: "+a.totalMinutes+" (verified: "+a.verifiedMinutes+", manual: "+a.manualMinutes+")",
   "Last 30 days question attempts: "+a.attemptCount+"; accuracy: "+a.accuracy+"%; average attempt time: "+a.averageSeconds+" seconds",
-  "Weakest sampled subject: "+(a.weakest?a.weakest.name+" at "+a.weakest.accuracy+"% across "+a.weakest.attempts+" counted attempts":"insufficient data (minimum five counted attempts per subject)"),
+  "Weakest sampled subject: "+(a.weakest?a.weakest.name+" at "+a.weakest.accuracy+"% across "+a.weakest.attempts+" counted attempts":"insufficient data (minimum five counted attempts per subject in the last 30 days)"),
   "Mistake categories: "+Object.entries(a.mistakes).map(([k,v])=>k+": "+v).join(", "),
   "Mock tests: "+state.tests.length+"; pending revisions due: "+due,
   "Upcoming tasks: "+nextTasks.map(x=>x.date+" "+x.title).join("; "),
-  "Subject summary: "+a.subjects.map(x=>x.name+": "+x.progress+"% manually completed chapters, "+x.attempts+" attempts, "+x.accuracy+"% accuracy, "+x.lectureCount+" lectures").join("; "),
-  "No rank or percentile prediction should be inferred from this data unless representative mock and cohort data are available."
- ].join("\n");
+  "Subject summary (last 30 days): "+a.subjects.map(x=>x.name+": "+x.progress+"% manually completed chapters, "+x.attempts+" recent attempts, "+x.accuracy+"% recent accuracy, "+x.lectureCount+" lectures").join("; "),
+  "No rank or percentile prediction should be inferred from this data unless representative mock and cohort data are available.",
+  retrieved.length?"Relevant saved study material (keyword retrieval; source labels are retained and unverified content is not promoted to official PYQ):\n"+retrieved.map(x=>x.rank+". "+x.kind+" | "+x.subject+" | "+x.chapter+" | "+x.source+"\n"+x.text).join("\n\n"):""
+ ].filter(Boolean).join("\n");
 }
