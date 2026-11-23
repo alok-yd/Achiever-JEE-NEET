@@ -1,5 +1,6 @@
 import {applicationDefault,cert,getApps,initializeApp} from "firebase-admin/app";
 import {getAuth} from "firebase-admin/auth";
+import {getAppCheck} from "firebase-admin/app-check";
 import {FieldValue,getFirestore} from "firebase-admin/firestore";
 
 type IncomingAttachment={name?:string;mimeType?:string;dataUrl?:string};
@@ -57,6 +58,11 @@ export default async function handler(req:RequestLike,res:ResponseLike){
  try{
   const {auth,db}=getAdmin();
   const decoded=await auth.verifyIdToken(match[1]);
+  if(String(process.env.REQUIRE_FIREBASE_APP_CHECK||"").toLowerCase()==="true"){
+   const appCheckToken=header(req,"x-firebase-appcheck");
+   if(!appCheckToken||Array.isArray(appCheckToken)) {res.status(401).json({error:"App Check verification is required for this request."});return;}
+   await getAppCheck().verifyToken(appCheckToken);
+  }
   const quota=await consumeQuota(db,decoded.uid);
   if(!quota.allowed){res.status(429).json({error:"AI Mentor usage limit reached. Please try again later.",dailyRemaining:quota.dailyRemaining,retryAfterSeconds:quota.retryAfterSeconds});return;}
   const message=String(req.body?.message||"").trim().slice(0,5000);
